@@ -10,7 +10,7 @@ const {
   verifyRefreshToken,
   hashToken,
 } = require('../utils/tokens');
-const { sendPasswordResetEmail, sendPasswordChangedEmail } = require('../utils/email');
+const { sendPasswordResetEmail, sendPasswordChangedEmail, sendCommunityWelcomeEmail } = require('../utils/email');
 const { generateUniqueSlug, RESERVED_SLUGS } = require('../utils/slugify');
 
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
@@ -112,6 +112,21 @@ const registerCommunity = catchAsync(async (req, res) => {
   });
 
   const accessToken = await issueTokenPair(res, result.createdAdmin);
+
+  // Every community gets its own permanent login link at
+  // <FRONTEND_URL>/<slug> — the only place this community's accounts can
+  // sign in (see login()'s communitySlug check, and Login.jsx's route
+  // param). The admin is already signed in via the cookie/token above, so
+  // this email is their durable record of that link rather than something
+  // blocking access right now. Fire-and-forget: a failed email must never
+  // undo an otherwise-successful signup.
+  const loginUrl = `${FRONTEND_URL.replace(/\/$/, '')}/${slug}`;
+  sendCommunityWelcomeEmail({
+    to: result.createdAdmin.email,
+    fullName: result.createdAdmin.fullName,
+    communityName: result.createdCommunity.name,
+    loginUrl,
+  }).catch(() => {});
 
   res.status(201).json({
     success: true,

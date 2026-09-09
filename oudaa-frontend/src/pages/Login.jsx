@@ -6,7 +6,7 @@ import HexHive from '../components/HexHive'
 import api, { endpoints } from '../lib/api'
 import { currentCommunitySlug } from '../lib/subdomain'
 
-export default function Login() {
+export default function Login({ communitySlug: propSlug }) {
   const { login, loading, error, demoLogins } = useAuth()
   const [method, setMethod] = useState('email') // 'email' | 'phone'
   const [email, setEmail] = useState('')
@@ -16,22 +16,45 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // When the app is loaded from a community's own subdomain
-  // (acme.oudaa.app), show that community's name here and send its slug
-  // along with the login request so the backend can refuse a login that
-  // doesn't actually belong to this tenant (see authController.login).
-  // On the shared apex domain / localhost, currentCommunitySlug() is null
-  // and this whole branding block is skipped — behaves exactly as before.
-  const communitySlug = currentCommunitySlug()
+  // Primary source: the "/:communitySlug" route param (App.jsx), i.e. this
+  // community's own permanent link, https://<host>/<slug>. Falls back to
+  // subdomain detection (currentCommunitySlug) for a possible future
+  // custom-domain setup, then to plain /login with no community context
+  // at all. Either way, when a slug is present it's sent along with the
+  // login request so the backend refuses a login that doesn't actually
+  // belong to this tenant (authController.login) — logging into the wrong
+  // community's page never succeeds even with a correct email/password.
+  const communitySlug = propSlug || currentCommunitySlug()
   const [community, setCommunity] = useState(null)
+  const [communityLookupFailed, setCommunityLookupFailed] = useState(false)
 
   useEffect(() => {
     if (!communitySlug) return
+    setCommunity(null)
+    setCommunityLookupFailed(false)
     api
       .get(endpoints.communityBySlug(communitySlug))
       .then(({ data }) => setCommunity(data.data))
-      .catch(() => setCommunity(null))
+      .catch(() => setCommunityLookupFailed(true))
   }, [communitySlug])
+
+  // A slug in the URL that doesn't match any community — mistyped, or a
+  // community that was renamed/removed. Show that plainly instead of a
+  // generic sign-in form that would just fail every attempt with the same
+  // "Invalid credentials" message (see authController.login).
+  if (communitySlug && communityLookupFailed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white px-6">
+        <div className="max-w-sm text-center">
+          <img src="/oudaa-logo-full.png" alt="Oudaa" className="mx-auto mb-6 h-9 w-auto object-contain" />
+          <h2 className="text-xl font-bold text-ink-900">Community not found</h2>
+          <p className="mt-2 text-sm text-ink-500">
+            There's no community at <span className="font-medium text-ink-700">/{communitySlug}</span>. Check the link your committee shared with you, or contact them for your community's correct sign-in address.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   async function onSubmit(e) {
     e.preventDefault()

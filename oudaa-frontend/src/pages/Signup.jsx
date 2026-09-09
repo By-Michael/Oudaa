@@ -498,8 +498,11 @@ function SuccessScreen({ slug }) {
       </div>
       <h2 className="mt-6 font-display text-3xl font-bold text-ink-900 dark:text-white">Your community is ready</h2>
       <p className="mt-3 text-ink-500 dark:text-ink-400">
-        Your platform is live at <span className="font-medium text-ink-800 dark:text-ink-100">{url}</span>.
-        Head to your dashboard to add residents, connect a payment account, and start collecting fees.
+        Your community's own sign-in page is <span className="font-medium text-ink-800 dark:text-ink-100">{url}</span> —
+        we've also emailed you this link. It's the only address your committee and residents will use to log in from now on.
+      </p>
+      <p className="mt-2 text-ink-500 dark:text-ink-400">
+        You're already signed in, so head straight to your dashboard to add residents, connect a payment account, and start collecting fees.
       </p>
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <button type="button" onClick={() => navigate('/admin')} className="btn-primary px-8 py-3">
@@ -652,10 +655,6 @@ export default function Signup() {
                 </button>
               </div>
             </div>
-
-            <p className="mt-6 text-center text-sm text-ink-400">
-              Already have an account? <Link to="/login" className="font-medium text-brand-600 hover:underline">Log in</Link>
-            </p>
           </>
         )}
 

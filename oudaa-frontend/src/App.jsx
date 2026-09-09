@@ -1,8 +1,9 @@
 import { useEffect, Suspense, lazy } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import AppLayout from './layouts/AppLayout'
 import Login from './pages/Login'
+import { RESERVED_PATH_SLUGS } from './lib/subdomain'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Landing from './pages/Landing'
@@ -54,6 +55,21 @@ function ScrollToTop() {
   return null
 }
 
+// Route element for "/:communitySlug" — every community's own permanent
+// login link (see lib/subdomain.js#communityUrl and the welcome email sent
+// from registerCommunity). Guards against a single path segment that
+// collides with a real platform route (e.g. someone hitting "/admin" with
+// no further path) ever reaching here — React Router's static-route
+// priority already prevents that in practice, since every one of those
+// literal paths is registered as its own <Route>, but this is a cheap,
+// explicit belt-and-suspenders check rather than relying solely on route
+// ranking.
+function CommunityLogin() {
+  const { communitySlug } = useParams()
+  if (RESERVED_PATH_SLUGS.has(communitySlug)) return <Navigate to="/" replace />
+  return <Login communitySlug={communitySlug} />
+}
+
 function Protected({ role, children }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
@@ -89,6 +105,12 @@ export default function App() {
       <Route path="/signup" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <Signup />} />
       <Route path="/forgot-password" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <ForgotPassword />} />
       <Route path="/reset-password" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <ResetPassword />} />
+
+      {/* Every community's own login page: https://<host>/<slug>. Must
+          come after every literal path above (so /login, /signup, etc.
+          keep matching those exact pages, not this dynamic segment) and
+          before the catch-all below. */}
+      <Route path="/:communitySlug" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <CommunityLogin />} />
 
       <Route path="/admin" element={<Protected role="admin"><AppLayout role="admin" /></Protected>}>
         <Route index element={<Suspense fallback={<RouteFallback />}><AdminDashboard /></Suspense>} />

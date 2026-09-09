@@ -255,10 +255,49 @@ async function sendResidentWelcomeEmail({ to, fullName, tempPassword, loginUrl, 
   return sendEmail({ to, subject, text, html });
 }
 
+/**
+ * Sent once, right when a brand-new community finishes the signup wizard.
+ * The founding admin is auto-signed-in in the browser that just submitted
+ * the wizard, but this email is their durable record of the one thing
+ * that's unique to them going forward: their community's own login link
+ * (https://<host>/<community-slug>). Every other community gets a
+ * different slug and therefore a different link — this is the "custom
+ * community link" residents/admins bookmark and use to sign back in,
+ * since the platform intentionally has no generic /login entry point for
+ * end users (see Signup.jsx removing that link, and authController.login's
+ * communitySlug check rejecting cross-tenant logins).
+ */
+async function sendCommunityWelcomeEmail({ to, fullName, communityName, loginUrl }) {
+  const subject = `${communityName} is live on Oudaa — here's your login link`;
+  const text = [
+    `Hello ${fullName},`,
+    '',
+    `${communityName} has been created on Oudaa. This is your community's own, permanent sign-in link:`,
+    '',
+    loginUrl,
+    '',
+    'Bookmark it — it\'s the only place your community\'s residents and committee can sign in, and it only works for this community\'s accounts.',
+    '',
+    'You were signed in automatically just now, so you can start setting things up right away.',
+    '',
+    '— Oudaa',
+  ].join('\n');
+  const html = `
+    <p>Hello ${fullName},</p>
+    <p><strong>${communityName}</strong> has been created on Oudaa. This is your community's own, permanent sign-in link:</p>
+    <p><a href="${loginUrl}">${loginUrl}</a></p>
+    <p>Bookmark it — it's the only place your community's residents and committee can sign in, and it only works for this community's accounts.</p>
+    <p>You were signed in automatically just now, so you can start setting things up right away.</p>
+    <p>— Oudaa</p>
+  `;
+  return sendEmail({ to, subject, text, html });
+}
+
 module.exports = {
   sendEmail,
   sendResidentDeactivatedEmail,
   sendResidentWelcomeEmail,
+  sendCommunityWelcomeEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendNotificationEmail,

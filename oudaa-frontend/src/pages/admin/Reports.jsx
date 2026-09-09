@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import { useData } from '../../context/DataContext'
 import {
-  PageHeader, currency, formatDate, Badge, ChartPlaceholder, notify,
+  PageHeader, currency, formatDate, Badge, ChartPlaceholder, ChartEmptyState, notify,
   FilterPopover, FilterGrid, FilterField, FilterTextInput, FilterSelectInput, FilterDateInput, FilterNumberInput,
 } from '../../components/ui'
 import { exportToExcel, exportToPdf, exportRichPdf, captureChartImage } from '../../lib/exportUtils'
@@ -667,7 +667,7 @@ export default function Reports() {
         <div className="card p-5" ref={utilisationChartRef}>
           <h3 className="font-semibold text-ink-800 mb-4">Budget utilisation by project (%)</h3>
           {projectUtilisation.length === 0 ? (
-            <ChartPlaceholder label="No budgeted projects yet" height={280} />
+            <ChartEmptyState height={280} title="No budgeted projects yet" body="Add a budget to a project to see utilisation here." />
           ) : (
             <ResponsiveContainer width="100%" height={Math.max(280, projectUtilisation.length * 34)}>
               <BarChart data={projectUtilisation} layout="vertical" margin={{ left: 8, right: 24 }}>

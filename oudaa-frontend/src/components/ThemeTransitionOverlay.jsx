@@ -3,7 +3,7 @@ import { useTheme } from '../context/ThemeContext'
 
 const COLORS = {
   light: '#f5f8ff',
-  dark: '#0b1120',
+  dark: '#141414',
 }
 const GLOW = {
   light: 'rgba(90,164,255,0.55)',

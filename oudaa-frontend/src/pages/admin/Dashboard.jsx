@@ -4,7 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Cart
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import api, { endpoints } from '../../lib/api'
-import { StatCard, Badge, PageHeader, Modal, currency, currencyBalance, formatDate, notify, ChartPlaceholder } from '../../components/ui'
+import { StatCard, Badge, PageHeader, Modal, currency, currencyBalance, formatDate, notify, ChartPlaceholder, ChartEmptyState } from '../../components/ui'
 
 // Headline stat-card numbers and the 6-month trend chart come from
 // dedicated aggregate endpoints (DB-side SUM/COUNT/GROUP BY) instead of
@@ -295,7 +295,9 @@ export default function AdminDashboard() {
             <span className="badge bg-brand-50 text-brand-700 ring-1 ring-brand-200">Last 6 months</span>
           </div>
           <p className="text-xs text-ink-400 mb-4">Monthly totals across all fee categories</p>
-          {!statsLoading && monthly.length > 0 ? (
+          {statsLoading ? (
+            <ChartPlaceholder />
+          ) : monthly.length > 0 ? (
           <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={monthly} margin={{ left: -14, right: 8 }}>
@@ -321,7 +323,13 @@ export default function AdminDashboard() {
             </AreaChart>
           </ResponsiveContainer>
           </div>
-          ) : <ChartPlaceholder />}
+          ) : (
+            <ChartEmptyState
+              icon={Wallet}
+              title="No activity yet"
+              body="Once payments come in and expenses are logged, your collections vs. expenses trend will show up here."
+            />
+          )}
         </div>
 
         <div className="card p-5 animate-fade-up h-[430px] flex flex-col">

@@ -76,8 +76,27 @@ export function Toaster() {
 export function ChartPlaceholder({ height = 260, label = 'Crunching the numbers…' }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 text-ink-300" style={{ height }}>
-      <span className="h-8 w-8 rounded-full border-2 border-ink-200 border-t-brand-500 dark:border-[#2a3557] dark:border-t-brand-400 animate-spin" />
+      <span className="h-8 w-8 rounded-full border-2 border-ink-200 border-t-brand-500 dark:border-[#383838] dark:border-t-brand-400 animate-spin" />
       <span className="text-xs font-medium">{label}</span>
+    </div>
+  )
+}
+
+// Shown instead of ChartPlaceholder once loading has actually finished and
+// the dataset behind a chart is just genuinely empty (a brand-new
+// community with no payments/expenses yet, for example) — distinct from
+// ChartPlaceholder's spinner so a new account doesn't look stuck loading
+// forever when there's simply nothing to plot yet.
+export function ChartEmptyState({ height = 260, icon: Icon, title = 'Nothing to show yet', body }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 text-center px-6" style={{ height }}>
+      {Icon && (
+        <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-ink-100 text-ink-400 dark:bg-white/[0.06] dark:text-ink-500">
+          <Icon size={18} />
+        </div>
+      )}
+      <span className="text-sm font-semibold text-ink-500 dark:text-ink-300">{title}</span>
+      {body && <span className="max-w-xs text-xs text-ink-400">{body}</span>}
     </div>
   )
 }
@@ -285,7 +304,7 @@ export function FilterField({ label, full, children }) {
   )
 }
 
-const filterFieldCls = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 placeholder:text-ink-400 outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition dark:bg-[#131b30] dark:border-[#2a3557] dark:text-ink-100'
+const filterFieldCls = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 placeholder:text-ink-400 outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition dark:bg-[#1e1e1e] dark:border-[#383838] dark:text-ink-100'
 
 // Compact text input for use inside a FilterField/FilterGrid.
 export function FilterTextInput({ value, onChange, placeholder }) {

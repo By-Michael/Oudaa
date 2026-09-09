@@ -327,7 +327,7 @@ export default function AppLayout({ role }) {
                 onChange={(e) => { setQuery(e.target.value); setSearchOpen(true) }}
                 onFocus={() => setSearchOpen(true)}
                 placeholder="Search residents, payments, projects…"
-                className="input pl-9 py-2.5 rounded-full bg-ink-50/70 border-transparent focus:bg-white dark:bg-[#1b2440] dark:focus:bg-[#1b2440]"
+                className="input pl-9 py-2.5 rounded-full bg-ink-50/70 border-transparent focus:bg-white dark:bg-[#232323] dark:focus:bg-[#232323]"
               />
             </div>
             {searchOpen && query.trim() && (
@@ -663,7 +663,7 @@ function SidebarFooter({ user, collapsed, navCollapsed, onLogout, onOpenHelp }) 
   // the nav links above it. Collapses down to icon-only, centered
   // buttons when the sidebar itself is collapsed.
   return (
-    <div className="shrink-0 pt-3 mt-2 border-t border-ink-100 dark:border-[#263255] space-y-2.5" style={{ marginTop: '5px' }}>
+    <div className="shrink-0 pt-3 mt-2 border-t border-ink-100 dark:border-[#2e2e2e] space-y-2.5" style={{ marginTop: '5px' }}>
       <p className={`text-xs text-ink-400 dark:text-ink-500 whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'hidden' : 'px-2.5'}`}>
         Signed in as <span className="font-semibold text-ink-700 dark:text-ink-200">{user?.name}</span>
       </p>
@@ -684,7 +684,7 @@ function SidebarFooter({ user, collapsed, navCollapsed, onLogout, onOpenHelp }) 
         type="button"
         onClick={onLogout}
         title={collapsed ? 'Log out' : undefined}
-        className={`inline-flex items-center justify-center gap-2 rounded-full border border-ink-200 dark:border-[#324066] px-4 py-1.5 text-sm font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors ${navCollapsed ? 'w-9 h-9 !p-0' : 'w-full'}`}
+        className={`inline-flex items-center justify-center gap-2 rounded-full border border-ink-200 dark:border-[#3a3a3a] px-4 py-1.5 text-sm font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors ${navCollapsed ? 'w-9 h-9 !p-0' : 'w-full'}`}
       >
         <LogOut className="h-4 w-4 shrink-0" />
         {!collapsed && 'Log out'}
@@ -699,12 +699,18 @@ function Brand({ collapsed = false, onToggle }) {
   // which can't be transitioned and causes a visible jump) so it glides
   // smoothly into line with the icons below it.
   //
-  // When expanded: the golden "H" mark, "ivee", and a separate collapse
-  // button all sit in a row. When collapsed: only the "H" mark remains
-  // (the rest of the wordmark is what's actually collapsing away, same
-  // idea as the wordmark's own collapse-to-H treatment), and hovering it
-  // crossfades the mark into the expand icon in place - clicking it (in
-  // either state) toggles the sidebar.
+  // Collapsed: just the round icon mark (the same artwork used inside
+  // oudaa-logo-full.png below, cropped to a square PNG) — hovering it
+  // crossfades into the expand icon in place, and clicking it (in either
+  // state) toggles the sidebar.
+  //
+  // Expanded: the exact same full wordmark image used on the Login and
+  // Landing pages (oudaa-logo-full.png) — previously this was a
+  // hand-rebuilt icon + plain-text "udaa" using the UI's own gradient/
+  // font, which drifted from the actual brand artwork (different font,
+  // no 3D/glossy styling, missing the "O"). Using the real asset here
+  // guarantees the sidebar always matches the login/landing pages
+  // pixel-for-pixel, with zero risk of the two drifting apart again.
   const LogoMark = (
     <span className="brand-mark relative h-11 w-11 shrink-0 grid place-items-center">
       <img
@@ -718,25 +724,27 @@ function Brand({ collapsed = false, onToggle }) {
     </span>
   )
 
+  const FullLogo = (
+    <img src="/oudaa-logo-full.png" alt="Oudaa" className="h-8 w-auto object-contain" />
+  )
+
   return (
     <div className={`flex items-center w-full transition-[padding] duration-300 ease-in-out ${collapsed ? 'pl-3' : 'pl-1'}`}>
-      {onToggle ? (
-        <button
-          type="button"
-          onClick={onToggle}
-          title={collapsed ? 'Expand sidebar' : undefined}
-          className="group rounded-xl shrink-0"
-        >
-          {LogoMark}
+      {collapsed ? (
+        onToggle ? (
+          <button type="button" onClick={onToggle} title="Expand sidebar" className="group rounded-xl shrink-0">
+            {LogoMark}
+          </button>
+        ) : (
+          LogoMark
+        )
+      ) : onToggle ? (
+        <button type="button" onClick={onToggle} title={undefined} className="shrink-0">
+          {FullLogo}
         </button>
       ) : (
-        LogoMark
+        FullLogo
       )}
-      <div className={`overflow-hidden flex items-center transition-all duration-300 ease-in-out ${collapsed ? 'max-w-0 opacity-0' : 'max-w-[110px] opacity-100 ml-1'}`}>
-        <p className="font-display font-bold text-2xl bg-brand-gradient bg-clip-text text-transparent whitespace-nowrap">
-          udaa
-        </p>
-      </div>
       {onToggle && (
         <button
           type="button"

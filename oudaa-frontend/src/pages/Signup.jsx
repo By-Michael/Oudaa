@@ -17,7 +17,6 @@ import {
 } from 'lucide-react'
 import api, { endpoints } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
-import { APP_BASE_DOMAIN, communityUrl } from '../lib/subdomain'
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                            */
@@ -83,9 +82,8 @@ const INITIAL_DATA = {
 /* Small building blocks                                               */
 /* ------------------------------------------------------------------ */
 
-function FieldError({ children }) {
-  if (!children) return null
-  return <p className="mt-1.5 text-xs font-medium text-red-600">{children}</p>
+function RequiredMark() {
+  return <span className="text-red-500"> *</span>
 }
 
 function SectionHeading({ eyebrow, title, body }) {
@@ -114,7 +112,7 @@ function Stepper({ step }) {
                       ? 'border-brand-500 bg-brand-500 text-white'
                       : active
                         ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300'
-                        : 'border-ink-200 bg-white text-ink-400 dark:border-[#263255] dark:bg-[#131b30]'
+                        : 'border-ink-200 bg-white text-ink-400 dark:border-[#2e2e2e] dark:bg-[#1e1e1e]'
                   }`}
                 >
                   {done ? <Check size={17} /> : <s.icon size={16} />}
@@ -124,7 +122,7 @@ function Stepper({ step }) {
                 </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`mx-2 h-0.5 flex-1 rounded-full transition-colors ${done ? 'bg-brand-500' : 'bg-ink-100 dark:bg-[#263255]'}`} />
+                <div className={`mx-2 h-0.5 flex-1 rounded-full transition-colors ${done ? 'bg-brand-500' : 'bg-ink-100 dark:bg-[#2e2e2e]'}`} />
               )}
             </div>
           )
@@ -151,19 +149,18 @@ function StepAccount({ data, update, errors }) {
       />
       <div className="space-y-5">
         <div>
-          <label className="label">Full name</label>
+          <label className="label">Full name<RequiredMark /></label>
           <input
             className="input"
             placeholder="Abebe Kebede"
             value={data.fullName}
             onChange={(e) => update({ fullName: e.target.value })}
           />
-          <FieldError>{errors.fullName}</FieldError>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label className="label">Email address</label>
+            <label className="label">Email address<RequiredMark /></label>
             <input
               type="email"
               className="input"
@@ -171,10 +168,9 @@ function StepAccount({ data, update, errors }) {
               value={data.email}
               onChange={(e) => update({ email: e.target.value })}
             />
-            <FieldError>{errors.email}</FieldError>
           </div>
           <div>
-            <label className="label">Phone number</label>
+            <label className="label">Phone number<RequiredMark /></label>
             <input
               type="tel"
               className="input"
@@ -182,13 +178,12 @@ function StepAccount({ data, update, errors }) {
               value={data.phone}
               onChange={(e) => update({ phone: e.target.value })}
             />
-            <FieldError>{errors.phone}</FieldError>
           </div>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label className="label">Password</label>
+            <label className="label">Password<RequiredMark /></label>
             <div className="relative">
               <input
                 type={showPw ? 'text' : 'password'}
@@ -201,10 +196,9 @@ function StepAccount({ data, update, errors }) {
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <FieldError>{errors.password}</FieldError>
           </div>
           <div>
-            <label className="label">Confirm password</label>
+            <label className="label">Confirm password<RequiredMark /></label>
             <div className="relative">
               <input
                 type={showConfirm ? 'text' : 'password'}
@@ -217,11 +211,10 @@ function StepAccount({ data, update, errors }) {
                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <FieldError>{errors.confirmPassword}</FieldError>
           </div>
         </div>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 bg-ink-50/60 p-4 dark:border-[#263255] dark:bg-white/[0.03]">
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 bg-ink-50/60 p-4 dark:border-[#2e2e2e] dark:bg-white/[0.03]">
           <input
             type="checkbox"
             checked={data.confirmRole}
@@ -230,10 +223,9 @@ function StepAccount({ data, update, errors }) {
           />
           <span className="text-sm text-ink-500 dark:text-ink-400">
             I confirm I'm setting this up as the <strong className="text-ink-800 dark:text-ink-100">committee / admin</strong>,
-            not as an individual resident. Residents get their own accounts later, from the dashboard.
+            not as an individual resident. Residents get their own accounts later, from the dashboard.<RequiredMark />
           </span>
         </label>
-        <FieldError>{errors.confirmRole}</FieldError>
       </div>
     </div>
   )
@@ -262,21 +254,21 @@ function StepCommunity({ data, update, errors }) {
       />
       <div className="space-y-5">
         <div>
-          <label className="label">Community name</label>
+          <label className="label">Community name<RequiredMark /></label>
           <input
             className="input"
             placeholder="e.g. Bole Ridge Villas"
             value={data.communityName}
             onChange={(e) => onNameChange(e.target.value)}
           />
-          <FieldError>{errors.communityName}</FieldError>
         </div>
 
         <div>
-          <label className="label">Your web address</label>
-          <div className="flex items-center overflow-hidden rounded-lg border border-ink-200 focus-within:ring-2 focus-within:ring-brand-300 dark:border-[#263255]">
+          <label className="label">Your web address<RequiredMark /></label>
+          <div className="flex items-center overflow-hidden rounded-lg border border-ink-200 focus-within:ring-2 focus-within:ring-brand-300 dark:border-[#2e2e2e]">
             <span className="flex items-center gap-1.5 bg-ink-50 px-3 py-2.5 text-sm text-ink-400 dark:bg-white/[0.03]">
               <Globe size={14} />
+              {typeof window !== 'undefined' ? `${window.location.origin}/` : '/'}
             </span>
             <input
               className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-sm text-ink-900 outline-none dark:text-white"
@@ -284,16 +276,14 @@ function StepCommunity({ data, update, errors }) {
               value={data.slug}
               onChange={(e) => onSlugChange(e.target.value)}
             />
-            <span className="whitespace-nowrap bg-ink-50 px-3 py-2.5 text-sm text-ink-400 dark:bg-white/[0.03]">
-              .{APP_BASE_DOMAIN}
-            </span>
           </div>
           <p className="mt-1.5 text-xs text-ink-400">
             Residents and committee members will sign in at{' '}
-            <span className="font-medium text-ink-600 dark:text-ink-300">{data.slug || 'your-community'}.{APP_BASE_DOMAIN}</span>.
+            <span className="font-medium text-ink-600 dark:text-ink-300">
+              {typeof window !== 'undefined' ? window.location.origin : ''}/{data.slug || 'your-community'}
+            </span>.
             If it's taken, we'll add a number to the end automatically.
           </p>
-          <FieldError>{errors.slug}</FieldError>
         </div>
 
         <div>
@@ -344,7 +334,7 @@ function StepFees({ data, update, errors }) {
       />
       <div className="space-y-4">
         {data.fees.map((fee, i) => (
-          <div key={fee.id} className="rounded-xl border border-ink-200 bg-white p-4 dark:border-[#263255] dark:bg-[#131b30]">
+          <div key={fee.id} className="rounded-xl border border-ink-200 bg-white p-4 dark:border-[#2e2e2e] dark:bg-[#1e1e1e]">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Fee {i + 1}</span>
               {data.fees.length > 1 && (
@@ -398,7 +388,6 @@ function StepFees({ data, update, errors }) {
             </div>
           </div>
         ))}
-        <FieldError>{errors.fees}</FieldError>
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button type="button" onClick={() => addFee()} className="btn-secondary gap-1.5 text-sm">
@@ -422,7 +411,7 @@ function StepFees({ data, update, errors }) {
 function ReviewRow({ label, value }) {
   if (!value) return null
   return (
-    <div className="flex items-center justify-between border-b border-ink-200 py-2.5 text-sm last:border-0 dark:border-[#263255]">
+    <div className="flex items-center justify-between border-b border-ink-200 py-2.5 text-sm last:border-0 dark:border-[#2e2e2e]">
       <span className="text-ink-400">{label}</span>
       <span className="font-medium text-ink-800 dark:text-ink-100">{value}</span>
     </div>
@@ -434,7 +423,7 @@ function StepReview({ data, onEdit, submitError }) {
     <div>
       <SectionHeading eyebrow="Step 4 of 4" title="Review & launch" body="Take a last look — you can jump back to any step to fix something." />
       <div className="space-y-5">
-        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
+        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#2e2e2e] dark:bg-[#1e1e1e]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-white"><User size={15} className="text-brand-500" /> Account</h3>
             <button type="button" onClick={() => onEdit(1)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button>
@@ -444,17 +433,17 @@ function StepReview({ data, onEdit, submitError }) {
           <ReviewRow label="Phone" value={data.phone} />
         </div>
 
-        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
+        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#2e2e2e] dark:bg-[#1e1e1e]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-white"><Building2 size={15} className="text-brand-500" /> Community</h3>
             <button type="button" onClick={() => onEdit(2)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button>
           </div>
           <ReviewRow label="Name" value={data.communityName} />
-          <ReviewRow label="Web address" value={`${data.slug}.${APP_BASE_DOMAIN}`} />
+          <ReviewRow label="Web address" value={`${typeof window !== 'undefined' ? window.location.origin : ''}/${data.slug}`} />
           <ReviewRow label="Address" value={data.address} />
         </div>
 
-        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
+        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#2e2e2e] dark:bg-[#1e1e1e]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-white"><Wallet size={15} className="text-brand-500" /> Fees ({data.fees.length})</h3>
             <button type="button" onClick={() => onEdit(3)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button>
@@ -488,21 +477,20 @@ function StepReview({ data, onEdit, submitError }) {
 /* Success screen                                                      */
 /* ------------------------------------------------------------------ */
 
-function SuccessScreen({ slug }) {
+function SuccessScreen() {
   const navigate = useNavigate()
-  const url = communityUrl(slug)
   return (
     <div className="mx-auto max-w-lg py-10 text-center">
       <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand-gradient shadow-glow">
         <CheckCircle2 size={40} className="text-white" />
       </div>
-      <h2 className="mt-6 font-display text-3xl font-bold text-ink-900 dark:text-white">Your community is ready</h2>
+      <h2 className="mt-6 font-display text-3xl font-bold text-ink-900 dark:text-white">Community created successfully</h2>
       <p className="mt-3 text-ink-500 dark:text-ink-400">
-        Your community's own sign-in page is <span className="font-medium text-ink-800 dark:text-ink-100">{url}</span> —
-        we've also emailed you this link. It's the only address your committee and residents will use to log in from now on.
+        Check your email — we've sent your community's permanent login link there. That's the only address
+        your committee and residents will use to sign in from now on, so keep that email somewhere safe.
       </p>
       <p className="mt-2 text-ink-500 dark:text-ink-400">
-        You're already signed in, so head straight to your dashboard to add residents, connect a payment account, and start collecting fees.
+        You're already signed in here, so you can head straight to your dashboard to add residents, connect a payment account, and start collecting fees.
       </p>
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <button type="button" onClick={() => navigate('/admin')} className="btn-primary px-8 py-3">
@@ -620,7 +608,7 @@ export default function Signup() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#eef1f9] text-ink-900 dark:bg-[#0b1120] dark:text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#eef1f9] text-ink-900 dark:bg-[#141414] dark:text-white">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/4 h-[28rem] w-[28rem] rounded-full bg-brand-300/15 blur-3xl dark:bg-brand-500/10" />
         <div className="absolute top-1/3 -right-20 h-[24rem] w-[24rem] rounded-full bg-teal-300/15 blur-3xl dark:bg-teal-500/10" />
@@ -634,13 +622,13 @@ export default function Signup() {
         {!launchedSlug && (
           <>
             <Stepper step={step} />
-            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-card sm:p-8 dark:border-[#263255] dark:bg-white/[0.02]">
+            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-card sm:p-8 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
               {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
               {step === 2 && <StepCommunity data={data} update={update} errors={errors} />}
               {step === 3 && <StepFees data={data} update={update} errors={errors} />}
               {step === 4 && <StepReview data={data} onEdit={setStep} submitError={submitError} />}
 
-              <div className="mt-8 flex items-center justify-between border-t border-ink-200 pt-6 dark:border-[#263255]">
+              <div className="mt-8 flex items-center justify-between border-t border-ink-200 pt-6 dark:border-[#2e2e2e]">
                 <button
                   type="button"
                   onClick={goBack}
@@ -658,7 +646,7 @@ export default function Signup() {
           </>
         )}
 
-        {launchedSlug && <SuccessScreen slug={launchedSlug} />}
+        {launchedSlug && <SuccessScreen />}
       </div>
     </main>
   )

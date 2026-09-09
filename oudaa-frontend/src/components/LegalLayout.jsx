@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 export default function LegalLayout({ title, updated, children }) {
   return (
     <div className="min-h-screen">
-      <header className="border-b border-ink-100 bg-white/80 backdrop-blur-md dark:border-[#1f2a49] dark:bg-[#0b1120]/80">
+      <header className="border-b border-ink-100 bg-white/80 backdrop-blur-md dark:border-[#262626] dark:bg-[#141414]/80">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
           <Link to="/" className="flex items-center gap-2.5">
             <img src="/landing/oudaa-h-mark-sm.png" alt="" className="h-7 w-7 dark:hidden" />

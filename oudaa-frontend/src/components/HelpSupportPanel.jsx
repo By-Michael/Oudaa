@@ -33,7 +33,7 @@ export default function HelpSupportPanel({ open, onClose }) {
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-2xl h-[92vh] sm:h-[85vh] card rounded-b-none sm:rounded-2xl flex flex-col overflow-hidden animate-fade-up">
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-ink-100 dark:border-[#263255]">
+        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-ink-100 dark:border-[#2e2e2e]">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-glow">
               <HelpCircle className="h-5 w-5 text-white" />
@@ -43,7 +43,7 @@ export default function HelpSupportPanel({ open, onClose }) {
               <p className="text-xs text-ink-400 leading-tight">Answers, or ask Oudaa AI directly</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700 transition dark:hover:bg-[#1c2947]">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700 transition dark:hover:bg-[#2a2a2a]">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -136,7 +136,7 @@ function FaqTab({ onAskAi }) {
               <p className="text-xs font-bold uppercase tracking-wide text-ink-400 mb-2">{category}</p>
               <div className="space-y-1.5">
                 {items.map((f) => (
-                  <div key={f.id} className="rounded-xl border border-ink-100 dark:border-[#263255] overflow-hidden">
+                  <div key={f.id} className="rounded-xl border border-ink-100 dark:border-[#2e2e2e] overflow-hidden">
                     <button
                       onClick={() => setOpenId(openId === f.id ? null : f.id)}
                       className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-ink-800 dark:text-ink-100 hover:bg-brand-50/50 dark:hover:bg-brand-500/5 transition-colors"
@@ -156,7 +156,7 @@ function FaqTab({ onAskAi }) {
       </div>
 
       {/* Attractive, obvious escape hatch to the AI when the FAQ doesn't cover it. */}
-      <div className="shrink-0 p-4 border-t border-ink-100 dark:border-[#263255]">
+      <div className="shrink-0 p-4 border-t border-ink-100 dark:border-[#2e2e2e]">
         <button
           onClick={onAskAi}
           className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gradient text-white font-semibold text-sm py-3 shadow-glow hover:brightness-[1.06] active:brightness-95 transition-all"
@@ -296,14 +296,14 @@ function ChatTab({ userName }) {
   return (
     <div className="h-full flex flex-col relative">
       {/* Sub-header: save toggle + history */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-2.5 border-b border-ink-100 dark:border-[#263255]">
+      <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-2.5 border-b border-ink-100 dark:border-[#2e2e2e]">
         <button
           onClick={() => handleToggleSave(!saveEnabled)}
           title={saveEnabled ? 'This conversation is being saved' : 'Save this conversation'}
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
             saveEnabled
               ? 'bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300'
-              : 'bg-ink-100 text-ink-500 hover:bg-ink-200 dark:bg-[#1c2947] dark:text-ink-400'
+              : 'bg-ink-100 text-ink-500 hover:bg-ink-200 dark:bg-[#2a2a2a] dark:text-ink-400'
           }`}
         >
           {saveEnabled ? <BookmarkCheck className="h-3.5 w-3.5" /> : <Bookmark className="h-3.5 w-3.5" />}
@@ -311,10 +311,10 @@ function ChatTab({ userName }) {
         </button>
 
         <div className="flex items-center gap-1.5">
-          <button onClick={startNewChat} title="New chat" className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700 transition dark:hover:bg-[#1c2947]">
+          <button onClick={startNewChat} title="New chat" className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700 transition dark:hover:bg-[#2a2a2a]">
             <Plus className="h-4 w-4" />
           </button>
-          <button onClick={toggleHistory} title="Saved conversations" className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700 transition dark:hover:bg-[#1c2947]">
+          <button onClick={toggleHistory} title="Saved conversations" className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700 transition dark:hover:bg-[#2a2a2a]">
             <History className="h-4 w-4" />
           </button>
         </div>
@@ -376,7 +376,7 @@ function ChatTab({ userName }) {
       )}
 
       {/* Input */}
-      <div className="shrink-0 p-4 border-t border-ink-100 dark:border-[#263255]">
+      <div className="shrink-0 p-4 border-t border-ink-100 dark:border-[#2e2e2e]">
         <div className="flex items-end gap-2">
           <textarea
             value={input}
@@ -412,7 +412,7 @@ function ChatBubble({ role, content, typing }) {
         className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
           isUser
             ? 'bg-brand-gradient text-white rounded-br-sm'
-            : 'bg-ink-100 text-ink-800 rounded-bl-sm dark:bg-[#1c2947] dark:text-ink-100'
+            : 'bg-ink-100 text-ink-800 rounded-bl-sm dark:bg-[#2a2a2a] dark:text-ink-100'
         }`}
       >
         {typing ? (

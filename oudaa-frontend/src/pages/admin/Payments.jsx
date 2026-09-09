@@ -572,7 +572,7 @@ export default function Payments() {
           <button
             type="button"
             onClick={openFilter}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${activeFilterCount > 0 ? 'bg-brand-gradient text-white border-transparent shadow-glow' : 'bg-white text-ink-600 border-ink-200 hover:border-brand-300 dark:bg-[#131b30] dark:border-[#2a3557] dark:text-ink-300'}`}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${activeFilterCount > 0 ? 'bg-brand-gradient text-white border-transparent shadow-glow' : 'bg-white text-ink-600 border-ink-200 hover:border-brand-300 dark:bg-[#1e1e1e] dark:border-[#383838] dark:text-ink-300'}`}
           >
             <SlidersHorizontal className="h-4 w-4" />
             Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}

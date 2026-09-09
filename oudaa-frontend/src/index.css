@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+  }
+  body {
+    overflow-x: hidden;
+  }
   html {
     @apply antialiased;
     /* Kimi-style compact type scale: ~80% of the previous base size

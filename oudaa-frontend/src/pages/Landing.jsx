@@ -603,7 +603,7 @@ function Footer() {
 /* ----------------------------------------------------------------- */
 export default function Landing() {
   return (
-    <main className="relative overflow-hidden bg-[#eef1f9] text-[#191d2e] dark:bg-[#0b1120] dark:text-[#dfe4f2]">
+    <main className="relative w-full overflow-hidden bg-[#eef1f9] text-[#191d2e] dark:bg-[#0b1120] dark:text-[#dfe4f2]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-[#0f9e7a]/5 blur-3xl dark:bg-[#01df9e]/5" />
         <div className="absolute right-1/4 top-1/3 h-96 w-96 rounded-full bg-[#00a8d1]/5 blur-3xl dark:bg-[#00b6fc]/5" />

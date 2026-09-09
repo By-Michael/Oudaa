@@ -78,10 +78,15 @@ function Navbar() {
     { label: 'Solutions', href: '#features' },
     { label: 'Contact', href: '#faq' },
   ]
+  // Source repo highlights the current page via usePathname(). This is a
+  // single page with anchor links rather than separate routes, so "Home"
+  // — the top of this page — is always the active one, matching the
+  // reference screenshot's highlighted pill exactly.
+  const activeLabel = 'Home'
 
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#d7dde9] bg-[#eef1f9]/80 backdrop-blur-md dark:border-[#01df9e]/30 dark:bg-[#0b1120]/80">
-      <div className="mx-auto max-w-7xl px-4 lg:px-0">
+      <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
         <div className="flex h-20 items-center justify-between">
           <a href="#top" className="flex items-center gap-2">
             <img src="/oudaa-logo-full.png" alt="Oudaa logo" className="h-9 w-auto object-contain" />
@@ -92,7 +97,11 @@ function Navbar() {
               <a
                 key={l.label}
                 href={l.href}
-                className="rounded-full px-3 py-2 text-lg font-normal text-[#191d2e] transition-colors hover:text-[#0f9e7a] dark:text-[#dfe4f2] dark:hover:text-[#01df9e]"
+                className={`rounded-full px-3 py-2 text-lg transition-colors ${
+                  l.label === activeLabel
+                    ? 'bg-[#0f9e7a]/10 font-semibold text-[#0f9e7a] dark:bg-[#01df9e]/10 dark:text-[#01df9e]'
+                    : 'font-normal text-[#191d2e] hover:text-[#0f9e7a] dark:text-[#dfe4f2] dark:hover:text-[#01df9e]'
+                }`}
               >
                 {l.label}
               </a>
@@ -147,7 +156,11 @@ function Navbar() {
                 key={l.label}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="block rounded-lg px-4 py-2 text-sm font-medium text-[#191d2e] hover:bg-[#0f9e7a]/10 dark:text-[#dfe4f2]"
+                className={`block rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  l.label === activeLabel
+                    ? 'bg-[#0f9e7a]/10 font-semibold text-[#0f9e7a] dark:bg-[#01df9e]/10 dark:text-[#01df9e]'
+                    : 'text-[#191d2e] hover:bg-[#0f9e7a]/10 dark:text-[#dfe4f2]'
+                }`}
               >
                 {l.label}
               </a>
@@ -232,12 +245,12 @@ function DashboardPreview() {
 /* ----------------------------------------------------------------- */
 function Hero() {
   return (
-    <section id="top" className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-20">
+    <section id="top" className="relative flex min-h-screen items-center justify-center overflow-hidden py-20">
       <div className="absolute inset-0 bg-gradient-to-br from-[#eef1f9] via-white to-[#eef1f9] dark:from-[#0b1120] dark:via-[#131b30] dark:to-[#0b1120]" />
       <div className="pointer-events-none absolute left-10 top-20 h-32 w-32 rounded-full bg-[#00a8d1]/10 blur-3xl dark:bg-[#00b6fc]/10" />
       <div className="pointer-events-none absolute bottom-40 right-20 h-40 w-40 rounded-full bg-[#0a63d8]/10 blur-3xl dark:bg-[#2f7dff]/10" />
 
-      <div className="relative z-20 mx-auto w-full max-w-7xl">
+      <div className="relative z-20 mx-auto w-full max-w-[1600px] px-6 lg:px-10">
         <div className="grid items-center gap-16 lg:grid-cols-2">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 text-[#00a8d1]/80 dark:text-[#00b6fc]/80">
@@ -296,8 +309,8 @@ function Problem() {
     { stat: 'One person, unchecked control', description: 'A single committee member can change bank details, fees, or hand off their seat with no oversight', icon: Zap },
   ]
   return (
-    <section className="relative overflow-hidden px-4 py-24">
-      <div className="mx-auto max-w-7xl">
+    <section className="relative overflow-hidden px-6 py-24 lg:px-10">
+      <div className="mx-auto max-w-[1600px]">
         <SectionHeading
           title="The Problem With Cash Boxes & Spreadsheets"
           body="Community-run funds are still managed with cash boxes, WhatsApp groups, and personal spreadsheets."
@@ -327,8 +340,8 @@ function Solution() {
     { title: 'Full Audit Log', description: 'A permanent record of every meaningful action taken in a community, visible to every committee member', icon: FileClock },
   ]
   return (
-    <section id="solution" className="relative overflow-hidden px-4 py-24">
-      <div className="mx-auto max-w-7xl">
+    <section id="solution" className="relative overflow-hidden px-6 py-24 lg:px-10">
+      <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="One Platform. Complete Transparency." body="Everything a committee needs to manage community funds, simplified." />
         <div className="grid gap-8 md:grid-cols-2">
           {features.map((f) => (
@@ -357,8 +370,8 @@ function Features() {
     { icon: Users, title: 'Role-Based Access', description: 'Separate ADMIN (committee) and RESIDENT permissions, scoped to each community' },
   ]
   return (
-    <section id="features" className="relative overflow-hidden bg-[#0f9e7a]/5 px-4 py-24 dark:bg-[#01df9e]/10">
-      <div className="mx-auto max-w-7xl">
+    <section id="features" className="relative overflow-hidden bg-[#0f9e7a]/5 px-6 py-24 lg:px-10 dark:bg-[#01df9e]/10">
+      <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="Core Features" body="Everything your committee needs in one unified platform" />
         <div className="grid gap-6 md:grid-cols-3">
           {features.map((f) => (
@@ -394,8 +407,8 @@ function UseCases() {
     { icon: Landmark, title: 'Any Self-Governing Group', description: 'A general engine for dues, funds, and approvals' },
   ]
   return (
-    <section id="use-cases" className="relative overflow-hidden px-4 py-24">
-      <div className="mx-auto max-w-7xl">
+    <section id="use-cases" className="relative overflow-hidden px-6 py-24 lg:px-10">
+      <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="Who Oudaa Is For" body="Built for community management, designed to serve any membership-based organization" />
 
         <div className="mb-12 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -436,8 +449,8 @@ function Testimonials() {
     { quote: 'Sensitive changes now need more than one signature. That alone was worth switching.', author: 'Yonas Girma', role: 'Committee Member, Meskel Flower Estate', stats: 'Multi-party approvals' },
   ]
   return (
-    <section id="testimonials" className="relative overflow-hidden px-4 py-24">
-      <div className="mx-auto max-w-7xl">
+    <section id="testimonials" className="relative overflow-hidden px-6 py-24 lg:px-10">
+      <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="Trusted by Committees" body="See why communities choose Oudaa to manage their funds" />
         <div className="grid gap-6 md:grid-cols-3">
           {testimonials.map((t) => (
@@ -487,7 +500,7 @@ function FaqItem({ q, a, open, onClick }) {
 function FAQ() {
   const [openIndex, setOpenIndex] = useState(0)
   return (
-    <section id="faq" className="relative overflow-hidden px-4 py-24">
+    <section id="faq" className="relative overflow-hidden px-6 py-24 lg:px-10">
       <div className="mx-auto max-w-4xl">
         <SectionHeading title="Common Questions" body="Quick answers about Oudaa" />
         <div className="space-y-4">
@@ -505,7 +518,7 @@ function FAQ() {
 /* ----------------------------------------------------------------- */
 function FinalCTA() {
   return (
-    <section className="relative overflow-hidden px-4 py-24">
+    <section className="relative overflow-hidden px-6 py-24 lg:px-10">
       <div className="relative mx-auto max-w-4xl">
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#0f9e7a]/10 to-[#00a8d1]/10 blur-3xl dark:from-[#01df9e]/10 dark:to-[#00b6fc]/10" />
         <div className="relative z-10 space-y-6 rounded-2xl bg-[#00a8d1]/10 p-12 text-center dark:bg-[#00b6fc]/10 md:p-16">
@@ -565,7 +578,7 @@ const FOOTER_LINKS = {
 function Footer() {
   return (
     <footer className="relative border-t border-slate-700/50 bg-[#0b1120]/95 text-[#dfe4f2] backdrop-blur-sm">
-      <div className="mx-auto max-w-7xl px-4 py-16">
+      <div className="mx-auto max-w-[1600px] px-6 py-16 lg:px-10">
         <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-4">
           {Object.entries(FOOTER_LINKS).map(([section, links]) => (
             <div key={section} className="space-y-4">

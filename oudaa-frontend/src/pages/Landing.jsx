@@ -245,8 +245,8 @@ function DashboardPreview() {
 /* ----------------------------------------------------------------- */
 function Hero() {
   return (
-    <section id="top" className="relative flex min-h-screen items-center justify-center overflow-hidden py-20">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#eef1f9] via-white to-[#eef1f9] dark:from-[#0b1120] dark:via-[#131b30] dark:to-[#0b1120]" />
+    <section id="top" className="relative flex items-center justify-center overflow-hidden py-24 lg:py-32">
+      <div className="absolute inset-0 bg-[#eef1f9] dark:bg-[#0b1120]" />
       <div className="pointer-events-none absolute left-10 top-20 h-32 w-32 rounded-full bg-[#00a8d1]/10 blur-3xl dark:bg-[#00b6fc]/10" />
       <div className="pointer-events-none absolute bottom-40 right-20 h-40 w-40 rounded-full bg-[#0a63d8]/10 blur-3xl dark:bg-[#2f7dff]/10" />
 

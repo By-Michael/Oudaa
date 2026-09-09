@@ -221,7 +221,7 @@ function StepAccount({ data, update, errors }) {
           </div>
         </div>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-100 bg-ink-50/60 p-4 dark:border-[#263255] dark:bg-white/[0.03]">
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 bg-ink-50/60 p-4 dark:border-[#263255] dark:bg-white/[0.03]">
           <input
             type="checkbox"
             checked={data.confirmRole}
@@ -344,7 +344,7 @@ function StepFees({ data, update, errors }) {
       />
       <div className="space-y-4">
         {data.fees.map((fee, i) => (
-          <div key={fee.id} className="rounded-xl border border-ink-100 bg-white p-4 dark:border-[#263255] dark:bg-[#131b30]">
+          <div key={fee.id} className="rounded-xl border border-ink-200 bg-white p-4 dark:border-[#263255] dark:bg-[#131b30]">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Fee {i + 1}</span>
               {data.fees.length > 1 && (
@@ -422,7 +422,7 @@ function StepFees({ data, update, errors }) {
 function ReviewRow({ label, value }) {
   if (!value) return null
   return (
-    <div className="flex items-center justify-between border-b border-ink-100 py-2.5 text-sm last:border-0 dark:border-[#263255]">
+    <div className="flex items-center justify-between border-b border-ink-200 py-2.5 text-sm last:border-0 dark:border-[#263255]">
       <span className="text-ink-400">{label}</span>
       <span className="font-medium text-ink-800 dark:text-ink-100">{value}</span>
     </div>
@@ -434,7 +434,7 @@ function StepReview({ data, onEdit, submitError }) {
     <div>
       <SectionHeading eyebrow="Step 4 of 4" title="Review & launch" body="Take a last look — you can jump back to any step to fix something." />
       <div className="space-y-5">
-        <div className="rounded-xl border border-ink-100 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
+        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-white"><User size={15} className="text-brand-500" /> Account</h3>
             <button type="button" onClick={() => onEdit(1)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button>
@@ -444,7 +444,7 @@ function StepReview({ data, onEdit, submitError }) {
           <ReviewRow label="Phone" value={data.phone} />
         </div>
 
-        <div className="rounded-xl border border-ink-100 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
+        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-white"><Building2 size={15} className="text-brand-500" /> Community</h3>
             <button type="button" onClick={() => onEdit(2)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button>
@@ -454,7 +454,7 @@ function StepReview({ data, onEdit, submitError }) {
           <ReviewRow label="Address" value={data.address} />
         </div>
 
-        <div className="rounded-xl border border-ink-100 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
+        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#263255] dark:bg-[#131b30]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-white"><Wallet size={15} className="text-brand-500" /> Fees ({data.fees.length})</h3>
             <button type="button" onClick={() => onEdit(3)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button>
@@ -617,7 +617,7 @@ export default function Signup() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-white text-ink-900 dark:bg-[#0b1120] dark:text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#eef1f9] text-ink-900 dark:bg-[#0b1120] dark:text-white">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/4 h-[28rem] w-[28rem] rounded-full bg-brand-300/15 blur-3xl dark:bg-brand-500/10" />
         <div className="absolute top-1/3 -right-20 h-[24rem] w-[24rem] rounded-full bg-teal-300/15 blur-3xl dark:bg-teal-500/10" />
@@ -631,13 +631,13 @@ export default function Signup() {
         {!launchedSlug && (
           <>
             <Stepper step={step} />
-            <div className="rounded-2xl border border-ink-100 bg-ink-50/40 p-6 shadow-soft sm:p-8 dark:border-[#263255] dark:bg-white/[0.02]">
+            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-card sm:p-8 dark:border-[#263255] dark:bg-white/[0.02]">
               {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
               {step === 2 && <StepCommunity data={data} update={update} errors={errors} />}
               {step === 3 && <StepFees data={data} update={update} errors={errors} />}
               {step === 4 && <StepReview data={data} onEdit={setStep} submitError={submitError} />}
 
-              <div className="mt-8 flex items-center justify-between border-t border-ink-100 pt-6 dark:border-[#263255]">
+              <div className="mt-8 flex items-center justify-between border-t border-ink-200 pt-6 dark:border-[#263255]">
                 <button
                   type="button"
                   onClick={goBack}

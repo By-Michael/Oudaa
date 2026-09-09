@@ -54,8 +54,8 @@ const chat = catchAsync(async (req, res) => {
   if (session) {
     await prisma.supportChatMessage.createMany({
       data: [
-        { sessionId: session.id, role: 'user', content: message },
-        { sessionId: session.id, role: 'assistant', content: reply },
+        { communityId: req.communityId || null, sessionId: session.id, role: 'user', content: message },
+        { communityId: req.communityId || null, sessionId: session.id, role: 'assistant', content: reply },
       ],
     });
     await prisma.supportChatSession.update({ where: { id: session.id }, data: { updatedAt: new Date() } });
@@ -97,7 +97,7 @@ const saveSession = catchAsync(async (req, res) => {
       userId: req.user.id,
       communityId: req.communityId || null,
       title: derivedTitle,
-      messages: { create: messages.map((m) => ({ role: m.role, content: m.content })) },
+      messages: { create: messages.map((m) => ({ communityId: req.communityId || null, role: m.role, content: m.content })) },
     },
     include: { messages: { orderBy: { createdAt: 'asc' } } },
   });

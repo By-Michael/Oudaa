@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Landing from './pages/Landing'
+import Signup from './pages/Signup'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import { Toaster } from './components/ui'
@@ -85,6 +86,7 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <Login />} />
+      <Route path="/signup" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <Signup />} />
       <Route path="/forgot-password" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <ForgotPassword />} />
       <Route path="/reset-password" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <ResetPassword />} />
 

@@ -22,7 +22,7 @@ const createTransferRequest = catchAsync(async (req, res) => {
   }
 
   const target = await prisma.resident.findFirst({
-    where: { id: req.body.toResidentId, user: { communityId: req.communityId } },
+    where: { id: req.body.toResidentId, communityId: req.communityId },
     include: { user: true },
   });
   if (!target) throw new AppError('Resident not found in this community', 404);
@@ -44,7 +44,7 @@ const createTransferRequest = catchAsync(async (req, res) => {
       toResidentId: target.id,
       status: otherMembers.length > 0 ? 'PENDING_COMMITTEE' : 'PENDING_RECIPIENT',
       approvals: {
-        create: otherMembers.map((m) => ({ committeeUserId: m.id })),
+        create: otherMembers.map((m) => ({ communityId: req.communityId, committeeUserId: m.id })),
       },
     },
     include: requestInclude,

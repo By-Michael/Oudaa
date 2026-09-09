@@ -105,11 +105,11 @@ export function AuthProvider({ children }) {
       .finally(() => setBootstrapped(true))
   }, [])
 
-  async function login(identifier, password) {
+  async function login(identifier, password, communitySlug) {
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.post(endpoints.login(), { identifier, password })
+      const { data } = await api.post(endpoints.login(), { identifier, password, communitySlug })
       localStorage.setItem('oudaa_token', data.data.accessToken)
       // The login response already includes resident/community relations
       // (see authController.login), so no follow-up /auth/me round trip
@@ -124,6 +124,18 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Used by the setup wizard (Signup.jsx) once /auth/register-community
+  // has already created the community + admin user and returned a session
+  // token — this just adopts that session the same way `login` does, so
+  // the new admin lands in the app already signed in instead of being
+  // bounced back to a login form right after finishing signup.
+  function adoptSession(accessToken, rawUser) {
+    localStorage.setItem('oudaa_token', accessToken)
+    const safe = normalizeUser(rawUser)
+    setUser(safe)
+    return safe
   }
 
   function logout() {
@@ -147,7 +159,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, error, bootstrapped, demoLogins: DEMO_LOGINS, patchUser }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, error, bootstrapped, demoLogins: DEMO_LOGINS, patchUser, adoptSession }}>
       {children}
     </AuthContext.Provider>
   )

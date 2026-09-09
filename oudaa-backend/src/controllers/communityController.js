@@ -68,4 +68,20 @@ const updateMyCommunity = catchAsync(async (req, res) => {
   });
 });
 
-module.exports = { getMyCommunity, updateMyCommunity, PENDING_CHANGE_FIELDS };
+// Public (no auth) — the login page loaded from a community's own
+// subdomain (acme.oudaa.app) calls this before anyone signs in, purely to
+// show that community's name instead of generic branding, and so it can
+// send the slug back with the login request for the tenant safety check
+// in authController.login. Deliberately returns almost nothing — a slug
+// is guessable, so this must never leak anything sensitive (financials,
+// resident data, bank details) to an unauthenticated caller.
+const getCommunityBySlug = catchAsync(async (req, res) => {
+  const community = await prisma.community.findUnique({
+    where: { slug: req.params.slug },
+    select: { id: true, name: true, slug: true },
+  });
+  if (!community) throw new AppError('Community not found', 404);
+  res.json({ success: true, data: community });
+});
+
+module.exports = { getMyCommunity, updateMyCommunity, getCommunityBySlug, PENDING_CHANGE_FIELDS };

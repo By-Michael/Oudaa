@@ -37,13 +37,13 @@ const createResident = catchAsync(async (req, res) => {
   // community — two residents can't share a unit, ID, or phone number.
   const [unitClash, idClash, phoneClash] = await Promise.all([
     unitNumber
-      ? prisma.resident.findFirst({ where: { unitNumber, user: { communityId: req.communityId } } })
+      ? prisma.resident.findFirst({ where: { unitNumber, communityId: req.communityId } })
       : null,
     idNumber
-      ? prisma.resident.findFirst({ where: { idNumber, user: { communityId: req.communityId } } })
+      ? prisma.resident.findFirst({ where: { idNumber, communityId: req.communityId } })
       : null,
     phone
-      ? prisma.resident.findFirst({ where: { phone, user: { communityId: req.communityId } } })
+      ? prisma.resident.findFirst({ where: { phone, communityId: req.communityId } })
       : null,
   ]);
   if (unitClash) throw new AppError('That unit / house number is already assigned to another resident', 409);
@@ -61,6 +61,7 @@ const createResident = catchAsync(async (req, res) => {
       role: 'RESIDENT',
       resident: {
         create: {
+          communityId: req.communityId,
           unitNumber,
           status: 'ACTIVE',
           phone,
@@ -116,7 +117,7 @@ const listResidents = catchAsync(async (req, res) => {
   const search = (req.query.search || '').trim();
 
   const where = {
-    user: { communityId: req.communityId },
+    communityId: req.communityId,
     ...(search
       ? {
           OR: [
@@ -154,7 +155,7 @@ const listResidents = catchAsync(async (req, res) => {
 
 const getResident = catchAsync(async (req, res) => {
   const resident = await prisma.resident.findFirst({
-    where: { id: req.params.id, user: { communityId: req.communityId } },
+    where: { id: req.params.id, communityId: req.communityId },
     include: { user: { select: { id: true, fullName: true, email: true, role: true } } },
   });
   if (!resident) throw new AppError('Resident not found', 404);
@@ -166,7 +167,7 @@ const getResident = catchAsync(async (req, res) => {
 // see outstanding/missing payments in a single call.
 const getResidentSummary = catchAsync(async (req, res) => {
   const resident = await prisma.resident.findFirst({
-    where: { id: req.params.id, user: { communityId: req.communityId } },
+    where: { id: req.params.id, communityId: req.communityId },
     include: {
       user: { select: { id: true, fullName: true, email: true, createdAt: true, role: true } },
       payments: {
@@ -193,7 +194,7 @@ const updateResident = catchAsync(async (req, res) => {
   const { fullName, email, unitNumber, status, phone, idNumber, address, ownerType } = req.body;
 
   const resident = await prisma.resident.findFirst({
-    where: { id: req.params.id, user: { communityId: req.communityId } },
+    where: { id: req.params.id, communityId: req.communityId },
     include: { user: true },
   });
   if (!resident) throw new AppError('Resident not found', 404);
@@ -208,13 +209,13 @@ const updateResident = catchAsync(async (req, res) => {
   // doesn't falsely flag a clash against itself.
   const [unitClash, idClash, phoneClash] = await Promise.all([
     unitNumber
-      ? prisma.resident.findFirst({ where: { unitNumber, id: { not: resident.id }, user: { communityId: req.communityId } } })
+      ? prisma.resident.findFirst({ where: { unitNumber, id: { not: resident.id }, communityId: req.communityId } })
       : null,
     idNumber
-      ? prisma.resident.findFirst({ where: { idNumber, id: { not: resident.id }, user: { communityId: req.communityId } } })
+      ? prisma.resident.findFirst({ where: { idNumber, id: { not: resident.id }, communityId: req.communityId } })
       : null,
     phone
-      ? prisma.resident.findFirst({ where: { phone, id: { not: resident.id }, user: { communityId: req.communityId } } })
+      ? prisma.resident.findFirst({ where: { phone, id: { not: resident.id }, communityId: req.communityId } })
       : null,
   ]);
   if (unitClash) throw new AppError('That unit / house number is already assigned to another resident', 409);
@@ -252,7 +253,7 @@ const updateResident = catchAsync(async (req, res) => {
 
 const deleteResident = catchAsync(async (req, res) => {
   const resident = await prisma.resident.findFirst({
-    where: { id: req.params.id, user: { communityId: req.communityId } },
+    where: { id: req.params.id, communityId: req.communityId },
     include: { user: true },
   });
   if (!resident) throw new AppError('Resident not found', 404);
@@ -326,7 +327,7 @@ const deactivateResident = catchAsync(async (req, res) => {
   if (!reason || !reason.trim()) throw new AppError('A reason is required to deactivate a resident', 422);
 
   const resident = await prisma.resident.findFirst({
-    where: { id: req.params.id, user: { communityId: req.communityId } },
+    where: { id: req.params.id, communityId: req.communityId },
     include: { user: true },
   });
   if (!resident) throw new AppError('Resident not found', 404);
@@ -368,7 +369,7 @@ const deactivateResident = catchAsync(async (req, res) => {
 // ADMIN: reactivate a previously-deactivated resident's account.
 const reactivateResident = catchAsync(async (req, res) => {
   const resident = await prisma.resident.findFirst({
-    where: { id: req.params.id, user: { communityId: req.communityId } },
+    where: { id: req.params.id, communityId: req.communityId },
     include: { user: true },
   });
   if (!resident) throw new AppError('Resident not found', 404);
@@ -411,7 +412,7 @@ const exportResidentPayments = catchAsync(async (req, res) => {
   const ExcelJS = require('exceljs');
 
   const resident = await prisma.resident.findFirst({
-    where: { id: req.params.id, user: { communityId: req.communityId } },
+    where: { id: req.params.id, communityId: req.communityId },
     include: {
       user: { select: { fullName: true, email: true } },
       payments: {

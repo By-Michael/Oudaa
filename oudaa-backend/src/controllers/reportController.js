@@ -141,8 +141,8 @@ const reportsSummary = catchAsync(async (req, res) => {
     }),
     prisma.payment.count({ where: { communityId, status: 'VERIFIED', paidAt: range } }),
     prisma.payment.count({ where: { communityId, paidAt: range } }),
-    prisma.resident.count({ where: { user: { communityId } } }),
-    prisma.resident.count({ where: { user: { communityId }, status: 'ACTIVE' } }),
+    prisma.resident.count({ where: { communityId } }),
+    prisma.resident.count({ where: { communityId, status: 'ACTIVE' } }),
     // Sum of VERIFIED payments grouped by fee — feeds the "by fee" chart.
     prisma.payment.groupBy({
       by: ['feeId'],

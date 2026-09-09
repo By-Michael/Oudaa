@@ -11,6 +11,7 @@ const {
   hashToken,
 } = require('../utils/tokens');
 const { sendPasswordResetEmail, sendPasswordChangedEmail } = require('../utils/email');
+const { generateUniqueSlug, RESERVED_SLUGS } = require('../utils/slugify');
 
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
 // Where the frontend's reset-password page lives, e.g.
@@ -42,6 +43,7 @@ async function issueTokenPair(res, user) {
   await prisma.refreshToken.create({
     data: {
       userId: user.id,
+      communityId: user.communityId || null,
       tokenHash: hashToken(refreshToken),
       expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     },
@@ -66,10 +68,20 @@ const registerCommunity = catchAsync(async (req, res) => {
   const existing = await prisma.user.findUnique({ where: { email: admin.email } });
   if (existing) throw new AppError('Email already in use', 409);
 
+  // A requested subdomain must not collide with a platform route
+  // (acme.oudaa.app is fine; app.oudaa.app or api.oudaa.app would shadow
+  // the platform itself) or an existing community's slug. Falls back to
+  // auto-generating from the name either way, so a bad/unavailable
+  // request never blocks signup.
+  const wantsSlug = community.slug && !RESERVED_SLUGS.has(community.slug);
+  const slug = await generateUniqueSlug(wantsSlug ? community.slug : community.name);
+
   const passwordHash = await bcrypt.hash(admin.password, 12);
 
   const result = await prisma.$transaction(async (tx) => {
-    const createdCommunity = await tx.community.create({ data: community });
+    const createdCommunity = await tx.community.create({
+      data: { ...community, slug },
+    });
     const createdAdmin = await tx.user.create({
       data: {
         communityId: createdCommunity.id,
@@ -90,6 +102,7 @@ const registerCommunity = catchAsync(async (req, res) => {
     // the admin can edit later from their own resident profile.
     await tx.resident.create({
       data: {
+        communityId: createdCommunity.id,
         userId: createdAdmin.id,
         unitNumber: 'N/A',
         status: 'ACTIVE',
@@ -111,7 +124,7 @@ const registerCommunity = catchAsync(async (req, res) => {
 });
 
 const login = catchAsync(async (req, res) => {
-  const { identifier, password } = req.body;
+  const { identifier, password, communitySlug } = req.body;
   const looksLikeEmail = identifier.includes('@');
 
   let user;
@@ -136,6 +149,22 @@ const login = catchAsync(async (req, res) => {
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new AppError('Invalid credentials', 401);
+
+  // If the login page was loaded from a community's subdomain
+  // (acme.oudaa.app), the frontend sends that slug along so we can refuse
+  // to authenticate someone into the wrong tenant's portal — e.g. a
+  // resident of "acme" typing their credentials in on "beta.oudaa.app" by
+  // mistake. Deliberately phrased the same as "Invalid credentials" would
+  // read to an attacker (no separate error surface to enumerate slugs
+  // against), but distinct enough that a genuine user knows what to fix.
+  if (communitySlug) {
+    const community = user.communityId
+      ? await prisma.community.findUnique({ where: { id: user.communityId } })
+      : null;
+    if (!community || community.slug !== communitySlug) {
+      throw new AppError('This account is not part of this community\u2019s portal', 403);
+    }
+  }
 
   // A resident whose account has been deactivated by the committee (for
   // non-payment or any other reason) can't log in — even with the right
@@ -268,6 +297,7 @@ const forgotPassword = catchAsync(async (req, res) => {
     await prisma.passwordResetToken.create({
       data: {
         userId: user.id,
+        communityId: user.communityId || null,
         tokenHash: hashToken(rawToken),
         expiresAt: new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60 * 1000),
       },

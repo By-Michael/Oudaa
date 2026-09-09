@@ -8,6 +8,11 @@ const { updateCommunitySchema } = require('../validators/communityValidators');
 
 const router = express.Router();
 
+// Public — must come before the authenticate/tenantScope middleware below,
+// since this is called from the login page itself, before anyone has a
+// token. See getCommunityBySlug for exactly how little it returns.
+router.get('/by-slug/:slug', ctrl.getCommunityBySlug);
+
 router.use(authenticate);
 // Every other resource route applies tenantScope right after authenticate
 // so req.communityId is set for controllers to use. This route was missing

@@ -17,7 +17,7 @@ const uploadReceipt = catchAsync(async (req, res) => {
   const { fileUrl, storageKey } = await saveReceiptFile(req.file);
 
   const receipt = await prisma.receipt.create({
-    data: { expenseId, fileUrl, storageKey },
+    data: { communityId: req.communityId, expenseId, fileUrl, storageKey },
   });
 
   res.status(201).json({ success: true, data: receipt });

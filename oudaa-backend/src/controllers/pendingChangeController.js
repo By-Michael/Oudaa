@@ -117,8 +117,8 @@ async function createPendingChange(req, { changeType, entityId, currentEntity, p
       approvals: {
         create: otherMembers.map((m) => (
           autoApprovedUserIds.has(m.id)
-            ? { committeeUserId: m.id, decision: 'APPROVED', respondedAt: new Date(), autoApproved: true }
-            : { committeeUserId: m.id }
+            ? { communityId: req.communityId, committeeUserId: m.id, decision: 'APPROVED', respondedAt: new Date(), autoApproved: true }
+            : { communityId: req.communityId, committeeUserId: m.id }
         )),
       },
     },

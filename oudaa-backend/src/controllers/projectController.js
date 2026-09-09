@@ -44,7 +44,7 @@ const createProject = catchAsync(async (req, res) => {
       data: { ...rest, budget, fundId, communityId: req.communityId },
     });
     await tx.projectFundAllocation.createMany({
-      data: allocations.map((a) => ({ projectId: created.id, fundId: a.fundId, amount: a.amount })),
+      data: allocations.map((a) => ({ communityId: req.communityId, projectId: created.id, fundId: a.fundId, amount: a.amount })),
     });
     return created;
   });
@@ -176,7 +176,7 @@ const updateProject = catchAsync(async (req, res) => {
     await prisma.$transaction([
       prisma.projectFundAllocation.deleteMany({ where: { projectId: project.id } }),
       prisma.projectFundAllocation.createMany({
-        data: resolvedAllocations.map((a) => ({ projectId: project.id, fundId: a.fundId, amount: a.amount })),
+        data: resolvedAllocations.map((a) => ({ communityId: req.communityId, projectId: project.id, fundId: a.fundId, amount: a.amount })),
       }),
     ]);
   }

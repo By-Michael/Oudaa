@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { Landmark, Mail, Phone, Lock, Eye, EyeOff, ShieldCheck, TrendingUp, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import HexHive from '../components/HexHive'
+import api, { endpoints } from '../lib/api'
+import { currentCommunitySlug } from '../lib/subdomain'
 
 export default function Login() {
   const { login, loading, error, demoLogins } = useAuth()
@@ -14,11 +16,28 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // When the app is loaded from a community's own subdomain
+  // (acme.oudaa.app), show that community's name here and send its slug
+  // along with the login request so the backend can refuse a login that
+  // doesn't actually belong to this tenant (see authController.login).
+  // On the shared apex domain / localhost, currentCommunitySlug() is null
+  // and this whole branding block is skipped — behaves exactly as before.
+  const communitySlug = currentCommunitySlug()
+  const [community, setCommunity] = useState(null)
+
+  useEffect(() => {
+    if (!communitySlug) return
+    api
+      .get(endpoints.communityBySlug(communitySlug))
+      .then(({ data }) => setCommunity(data.data))
+      .catch(() => setCommunity(null))
+  }, [communitySlug])
+
   async function onSubmit(e) {
     e.preventDefault()
     try {
       const identifier = method === 'email' ? email : phone
-      const u = await login(identifier, password)
+      const u = await login(identifier, password, communitySlug || undefined)
       const dest = location.state?.from || (u.role === 'admin' ? '/admin' : '/resident')
       navigate(dest, { replace: true })
     } catch {
@@ -31,7 +50,7 @@ export default function Login() {
     setEmail(d.email)
     setPassword(d.password)
     try {
-      const u = await login(d.email, d.password)
+      const u = await login(d.email, d.password, communitySlug || undefined)
       const dest = location.state?.from || (u.role === 'admin' ? '/admin' : '/resident')
       navigate(dest, { replace: true })
     } catch {
@@ -93,7 +112,9 @@ export default function Login() {
             <img src="/oudaa-logo-full.png" alt="Oudaa" className="h-11 w-auto object-contain" />
           </div>
 
-          <h2 className="text-2xl font-bold text-ink-900">Welcome back</h2>
+          <h2 className="text-2xl font-bold text-ink-900">
+            {community ? `Sign in to ${community.name}` : 'Welcome back'}
+          </h2>
           <p className="mt-1.5 text-sm text-ink-500">Sign in to manage your community's finances.</p>
 
           <form onSubmit={onSubmit} className="mt-7 space-y-4">
@@ -171,6 +192,7 @@ export default function Login() {
             </button>
           </form>
 
+          {!communitySlug && (
           <div className="mt-6 rounded-2xl border border-dashed border-brand-200 bg-brand-50/60 p-4">
             <p className="text-xs font-semibold text-brand-700 mb-1">Try the demo</p>
             <p className="text-[11px] text-ink-400 mb-2">One click, no typing — signs you straight in.</p>
@@ -193,6 +215,7 @@ export default function Login() {
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

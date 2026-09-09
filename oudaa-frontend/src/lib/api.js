@@ -102,6 +102,7 @@ export const endpoints = {
   auditLogs: () => '/audit-logs',
 
   communityMe: () => '/communities/me/current',
+  communityBySlug: (slug) => `/communities/by-slug/${slug}`,
 
   fees: () => '/fees',
   fee: (id) => `/fees/${id}`,

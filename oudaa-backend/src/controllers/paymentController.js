@@ -112,7 +112,7 @@ async function resolveResidentId(req) {
   // ADMIN recording on behalf of someone
   if (!req.body.residentId) throw new AppError('residentId is required', 422);
   const resident = await prisma.resident.findFirst({
-    where: { id: req.body.residentId, user: { communityId: req.communityId } },
+    where: { id: req.body.residentId, communityId: req.communityId },
   });
   if (!resident) throw new AppError('Resident not found in this community', 404);
   return resident.id;

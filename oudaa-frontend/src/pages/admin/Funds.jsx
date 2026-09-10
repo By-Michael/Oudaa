@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, Pencil, Trash2, Landmark, TrendingUp, Target, Users, Lock } from 'lucide-react'
 import { useData } from '../../context/DataContext'
-import { PageHeader, Modal, currency, currencyBalance, ConfirmDialog, notify } from '../../components/ui'
+import { PageHeader, Modal, currency, currencyBalance, ConfirmDialog, notify, EmptyState } from '../../components/ui'
 import { FUND_CATEGORIES } from '../../lib/adapters'
 
 const empty = { name: '', category: 'Security', goal: '', reason: '' }
@@ -106,6 +106,9 @@ export default function Funds() {
         action={<button onClick={openAdd} className="btn-primary"><Plus className="h-4 w-4" /> Add fund</button>}
       />
 
+      {enriched.length === 0 ? (
+        <div className="card"><EmptyState icon={Landmark} title="No funds yet" subtitle="Create your first fund, like a Security Fund or Maintenance Fund, to start tracking contributions." action={<button onClick={openAdd} className="btn-primary"><Plus className="h-4 w-4" /> Add fund</button>} /></div>
+      ) : (
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {enriched.map((f) => {
           const linkedProjects = projects.filter((p) => p.fundId === f.id)
@@ -173,6 +176,7 @@ export default function Funds() {
           )
         })}
       </div>
+      )}
 
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit fund' : 'Add fund'} wide>
         <form onSubmit={submit} className="space-y-4">

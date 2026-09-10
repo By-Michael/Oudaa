@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Landmark, Target, Users, TrendingUp, HandCoins, Copy, Check, Camera, Loader2, ShieldCheck, Clock, RotateCw, Upload, FileCheck2, Smartphone, Link2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { PageHeader, Modal, Badge, currency, currencyBalance, usePagedList, Pager, formatDate } from '../../components/ui'
+import { PageHeader, Modal, Badge, currency, currencyBalance, usePagedList, Pager, formatDate, EmptyState } from '../../components/ui'
 
 // Maps a CommunityPaymentMethod's `provider` enum (DB value) to the
 // lowercase hint the backend's self-verify endpoint expects (see
@@ -266,6 +266,9 @@ export default function ResidentFunds() {
   return (
     <div>
       <PageHeader title="Community Funds" subtitle={`Transparent balances totalling ${currency(total)}`} />
+      {enriched.length === 0 ? (
+        <div className="card"><EmptyState icon={Landmark} title="No funds yet" subtitle="Your committee hasn't set up any community funds yet — check back soon." /></div>
+      ) : (
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {enriched.map((f) => (
           <div key={f.id} className="card p-5">
@@ -313,6 +316,7 @@ export default function ResidentFunds() {
           </div>
         ))}
       </div>
+      )}
 
       <div className="card overflow-hidden mt-5">
         <div className="px-5 py-4 border-b border-ink-50">
@@ -320,7 +324,7 @@ export default function ResidentFunds() {
           <p className="text-xs text-ink-400 mt-0.5">Every direct fund contribution you've made, and where it stands right now.</p>
         </div>
         {myContributions.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-ink-400">No fund contributions yet — use "Contribute" on any fund above.</p>
+          <EmptyState icon={HandCoins} title="No contributions yet" subtitle='Use "Contribute" on any fund above to make your first one.' />
         ) : (
           <div className="table-wrap !border-0">
             <table className="data-table">

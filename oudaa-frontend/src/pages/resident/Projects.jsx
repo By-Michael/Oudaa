@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Calendar, ChevronRight, Landmark, Paperclip, Ban, FolderKanban, Search } from 'lucide-react'
 import { useData } from '../../context/DataContext'
-import { PageHeader, Modal, Badge, currency, formatDate, usePagedList, Pager, useDebouncedValue } from '../../components/ui'
+import { PageHeader, Modal, Badge, currency, formatDate, usePagedList, Pager, useDebouncedValue, EmptyState } from '../../components/ui'
 
 const EXPENSE_CATEGORY_LABEL = {
   SECURITY: 'Security', WATER: 'Water', CLEANING: 'Cleaning', MAINTENANCE: 'Maintenance',
@@ -92,9 +92,9 @@ export default function ResidentProjects() {
           )
         })}
         {projects.length === 0 ? (
-          <div className="card p-10 sm:col-span-2 text-center text-sm text-ink-400">No projects have been logged yet.</div>
+          <div className="card sm:col-span-2"><EmptyState icon={FolderKanban} title="No projects yet" subtitle="Your committee hasn't logged any projects yet — check back soon." /></div>
         ) : filteredProjects.length === 0 && (
-          <div className="card p-10 sm:col-span-2 text-center text-sm text-ink-400">No projects match your search.</div>
+          <div className="card sm:col-span-2"><EmptyState icon={Search} title="No projects match your search" subtitle="Try a different search term or clear the filters." /></div>
         )}
       </div>
       {totalPages > 1 && (

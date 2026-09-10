@@ -292,17 +292,22 @@ const getMyResidentProfile = catchAsync(async (req, res) => {
 });
 
 // A resident updating their own contact details. Deliberately narrow:
-// only phone/address are self-editable — unit, status, ID number,
-// owner/renter type, and email stay committee-managed.
+// only address is self-editable here — unit, status, ID number,
+// owner/renter type, and email stay committee-managed. Phone is
+// deliberately EXCLUDED from this endpoint: it's used for phone-based
+// login (see authController.login), so changing it goes through the
+// email-verified OTP flow instead (userController.verifyPhoneOtp) rather
+// than this plain PATCH, which any valid session could otherwise call
+// directly with no verification at all.
 const updateMyResidentProfile = catchAsync(async (req, res) => {
-  const { phone, address } = req.body;
+  const { address } = req.body;
 
   const resident = await prisma.resident.findUnique({ where: { userId: req.user.id } });
   if (!resident) throw new AppError('Resident profile not found', 404);
 
   const updated = await prisma.resident.update({
     where: { id: resident.id },
-    data: { phone, address },
+    data: { address },
     include: { user: { select: { id: true, fullName: true, email: true } } },
   });
 

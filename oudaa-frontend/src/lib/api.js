@@ -90,6 +90,8 @@ export const endpoints = {
 
   myPreferences: () => '/users/me/preferences',
   myAvatar: () => '/users/me/avatar',
+  myOtpRequest: () => '/users/me/otp/request',
+  myOtpVerifyPhone: () => '/users/me/otp/verify-phone',
 
   residents: () => '/residents',
   resident: (id) => `/residents/${id}`,

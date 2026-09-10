@@ -242,6 +242,7 @@ model User {
   resident      Resident?
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  profileChangeOtps ProfileChangeOtp[]
   verifiedPayments Payment[]  @relation("PaymentVerifiedBy")
   recordedPayments Payment[]  @relation("PaymentRecordedBy")
   recordedExpenses Expense[]  @relation("ExpenseRecordedBy")
@@ -388,6 +389,35 @@ model PasswordResetToken {
   @@index([userId])
   @@index([communityId])
   @@map("password_reset_tokens")
+}
+
+// Email-verified OTP gate for the two self-service profile changes that
+// warrant it: a resident changing their phone number (used for phone
+// login — see authController.login) or their profile picture. Committee
+// (ADMIN) users skip this entirely for avatar changes (see
+// userController.uploadAvatar) since it's low-stakes for them; residents
+// go through it for both. One row per requested change: `payload` carries
+// whatever the change needs to apply once verified (e.g. { phone } for a
+// PHONE request — AVATAR has no payload since the file itself arrives
+// with the verify call). Only the OTP's hash is stored, same pattern as
+// PasswordResetToken/RefreshToken. `attempts` caps guesses per code
+// before it's dead regardless of expiresAt, since a 6-digit code has far
+// less entropy than a reset token and is worth rate-limiting on its own.
+model ProfileChangeOtp {
+  id         String    @id @default(uuid())
+  userId     String
+  type       String    // 'PHONE' | 'AVATAR'
+  payload    Json?
+  otpHash    String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("profile_change_otps")
 }
 
 model Resident {

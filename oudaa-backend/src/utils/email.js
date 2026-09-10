@@ -293,6 +293,40 @@ async function sendCommunityWelcomeEmail({ to, fullName, communityName, loginUrl
   return sendEmail({ to, subject, text, html });
 }
 
+/**
+ * Sends the 6-digit one-time code used to verify a self-service phone
+ * number or profile picture change (see userController's OTP flow).
+ * Deliberately doesn't say what the new phone number will be — the code
+ * alone is enough to confirm; the actual change is only applied once the
+ * caller verifies it with the API.
+ */
+async function sendProfileOtpEmail({ to, fullName, otp, purpose, expiresInMinutes }) {
+  const what = purpose === 'PHONE' ? 'phone number' : 'profile picture';
+  const subject = `Your Oudaa verification code: ${otp}`;
+  const text = [
+    `Hello ${fullName},`,
+    '',
+    `Use this code to confirm your ${what} change:`,
+    '',
+    otp,
+    '',
+    `This code is valid for ${expiresInMinutes} minutes and can only be used once.`,
+    '',
+    "If you didn't request this, you can safely ignore this email — no change will be made without the code.",
+    '',
+    '— Oudaa',
+  ].join('\n');
+  const html = `
+    <p>Hello ${fullName},</p>
+    <p>Use this code to confirm your ${what} change:</p>
+    <p style="font-size:28px;font-weight:700;letter-spacing:0.3em;">${otp}</p>
+    <p>This code is valid for ${expiresInMinutes} minutes and can only be used once.</p>
+    <p>If you didn't request this, you can safely ignore this email — no change will be made without the code.</p>
+    <p>— Oudaa</p>
+  `;
+  return sendEmail({ to, subject, text, html });
+}
+
 module.exports = {
   sendEmail,
   sendResidentDeactivatedEmail,
@@ -301,6 +335,7 @@ module.exports = {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendNotificationEmail,
+  sendProfileOtpEmail,
   isStubActive,
   verifyEmailTransport,
 };

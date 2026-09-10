@@ -13,14 +13,12 @@ import api, { endpoints, fileUrl } from '../../lib/api'
 import { NOTIFICATION_CATEGORIES, getNotificationPrefs, setNotificationPref } from '../../lib/notificationPrefs'
 
 // Every sensitive profile change (password, phone, picture) goes through a
-// one-time code sent to the account's email — the one field nobody, not
-// even the resident themself, can edit once the committee registers them.
-// This environment has no SMTP/email provider wired up, so the code is
-// surfaced directly in the UI instead of actually being emailed; swap
-// `sendOtp` for a real mail call once one is configured.
-function generateOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000))
-}
+// real 6-digit code emailed via Brevo to the account's email — the one
+// field nobody, not even the resident themself, can edit once the
+// committee registers them (see userController.requestProfileOtp /
+// verifyPhoneOtp and utils/email.js#sendProfileOtpEmail). The backend
+// only ever stores a hash of the code; the browser never generates or
+// sees it except when typed in by the person reading their inbox.
 
 // ---------------------------------------------------------------------------
 // Tab classification:
@@ -122,9 +120,11 @@ function ProfileTab({ user, isCommittee }) {
   const { patchUser } = useAuth()
   const me = residents.find((r) => r.userId === user?.id || r.id === user?.residentId)
 
-  const [pendingAction, setPendingAction] = useState(null) // { type, payload, otp }
+  const [pendingAction, setPendingAction] = useState(null) // { type, payload }
   const [otpInput, setOtpInput] = useState('')
   const [otpError, setOtpError] = useState('')
+  const [otpSending, setOtpSending] = useState(false)
+  const [otpVerifying, setOtpVerifying] = useState(false)
   const [sentNotice, setSentNotice] = useState('')
   const [banner, setBanner] = useState('')
   const [avatarUploading, setAvatarUploading] = useState(false)
@@ -137,54 +137,81 @@ function ProfileTab({ user, isCommittee }) {
   // device they sign into.
   const avatar = user?.avatarUrl ? fileUrl(user.avatarUrl) : null
 
-  function beginVerifiedChange(type, payload) {
-    const otp = generateOtp()
-    setPendingAction({ type, payload, otp })
-    setOtpInput('')
+  // Kicks off real email verification via the backend (which sends
+  // through Brevo — see utils/email.js#sendProfileOtpEmail). The code
+  // itself never touches the browser; the backend only stores its hash
+  // and validates whatever the person types back in confirmOtp().
+  async function beginVerifiedChange(type, payload) {
+    setOtpSending(true)
     setOtpError('')
-    setSentNotice(`A 6-digit code was "sent" to ${user?.email}. Since no email service is connected in this environment, it's shown here instead: ${otp}`)
+    try {
+      const { data } = await api.post(endpoints.myOtpRequest(), {
+        type: type.toUpperCase(),
+        ...(type === 'phone' ? { phone: payload.phone } : {}),
+      })
+      setPendingAction({ type, payload })
+      setOtpInput('')
+      // In local/dev environments with no Brevo API key configured, the
+      // backend has no channel to deliver the code through and returns
+      // it directly (see userController.requestProfileOtp) — surface
+      // that here instead of the code silently going nowhere. In a real
+      // deployment this field is never present and the message below is
+      // all that shows.
+      setSentNotice(
+        data?.data?.stubOtp
+          ? `Email isn't configured on the server yet, so here's the code instead of it being emailed: ${data.data.stubOtp}`
+          : (data?.message || `A 6-digit code was sent to ${user?.email}.`)
+      )
+    } catch (err) {
+      notify(err?.response?.data?.message || err.message || 'Could not send a verification code.')
+    } finally {
+      setOtpSending(false)
+    }
   }
 
   async function confirmOtp() {
     if (!pendingAction) return
-    if (otpInput.trim() !== pendingAction.otp) {
-      setOtpError('That code doesn\u2019t match. Check the code and try again.')
-      return
-    }
-    if (pendingAction.type === 'phone') {
-      try {
-        await api.patch(endpoints.myResidentProfile(), { phone: pendingAction.payload.phone })
+    setOtpVerifying(true)
+    setOtpError('')
+    try {
+      if (pendingAction.type === 'phone') {
+        await api.post(endpoints.myOtpVerifyPhone(), { otp: otpInput.trim() })
         await refresh()
         setBanner('Phone number updated.')
-      } catch (err) {
-        setOtpError(err?.response?.data?.message || err.message || 'Could not update your phone number.')
-        return
+      } else if (pendingAction.type === 'avatar') {
+        const ok = await uploadAvatar(pendingAction.payload.file, otpInput.trim())
+        if (!ok.success) {
+          setOtpError(ok.message || 'Could not upload your profile picture. Please try again.')
+          return
+        }
+        setBanner('Profile picture updated.')
       }
-    } else if (pendingAction.type === 'avatar') {
-      const ok = await uploadAvatar(pendingAction.payload.file)
-      if (!ok) {
-        setOtpError('Could not upload your profile picture. Please try again.')
-        return
-      }
-      setBanner('Profile picture updated.')
+      setPendingAction(null)
+      setSentNotice('')
+      setTimeout(() => setBanner(''), 4000)
+    } catch (err) {
+      setOtpError(err?.response?.data?.message || err.message || 'That code didn\u2019t work. Check it and try again.')
+    } finally {
+      setOtpVerifying(false)
     }
-    setPendingAction(null)
-    setSentNotice('')
-    setTimeout(() => setBanner(''), 4000)
   }
 
-  async function uploadAvatar(file) {
+  // `otp` is only sent for residents — the backend requires it for
+  // everyone except committee members (see userController.uploadAvatar),
+  // who upload straight through onPickFile below with no OTP at all.
+  async function uploadAvatar(file, otp) {
     const form = new FormData()
     form.append('avatar', file)
+    if (otp) form.append('otp', otp)
     setAvatarUploading(true)
     try {
       const { data } = await api.post(endpoints.myAvatar(), form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       patchUser({ avatarUrl: data.data.avatarUrl })
-      return true
-    } catch {
-      return false
+      return { success: true }
+    } catch (err) {
+      return { success: false, message: err?.response?.data?.message || err.message }
     } finally {
       setAvatarUploading(false)
     }
@@ -196,12 +223,12 @@ function ProfileTab({ user, isCommittee }) {
     // Committee members can change their photo without email verification;
     // it's only required for password and phone number changes.
     if (isCommittee) {
-      const ok = await uploadAvatar(file)
-      if (ok) {
+      const result = await uploadAvatar(file)
+      if (result.success) {
         setBanner('Profile picture updated.')
         setTimeout(() => setBanner(''), 4000)
       } else {
-        notify('Could not upload your profile picture.')
+        notify(result.message || 'Could not upload your profile picture.')
       }
     } else {
       beginVerifiedChange('avatar', { file })
@@ -232,13 +259,13 @@ function ProfileTab({ user, isCommittee }) {
             )}
             <button
               onClick={() => fileRef.current?.click()}
-              disabled={avatarUploading}
+              disabled={avatarUploading || otpSending}
               className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-brand-gradient text-white flex items-center justify-center shadow-glow disabled:opacity-60"
               title="Change profile picture"
             >
-              {avatarUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+              {(avatarUploading || otpSending) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
             </button>
-            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onPickFile} disabled={avatarUploading} />
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onPickFile} disabled={avatarUploading || otpSending} />
           </div>
           <div>
             <p className="font-semibold text-ink-800">{user?.name}</p>
@@ -259,7 +286,7 @@ function ProfileTab({ user, isCommittee }) {
       <form onSubmit={submitPhone} className="card p-5 mb-5 space-y-3">
         <h3 className="font-semibold text-ink-800 flex items-center gap-2"><Phone className="h-4 w-4 text-brand-600" /> Phone number</h3>
         <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+251 9xx xxx xxx" />
-        <button type="submit" className="btn-secondary">Update phone (verify by email)</button>
+        <button type="submit" disabled={otpSending} className="btn-secondary">{otpSending ? 'Sending code…' : 'Update phone (verify by email)'}</button>
       </form>
 
       {/* OTP modal */}
@@ -280,8 +307,10 @@ function ProfileTab({ user, isCommittee }) {
             />
             {otpError && <p className="text-sm text-rose-600 mt-2">{otpError}</p>}
             <div className="flex gap-2 pt-4">
-              <button onClick={() => setPendingAction(null)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={confirmOtp} className="btn-primary flex-1">Confirm</button>
+              <button onClick={() => setPendingAction(null)} disabled={otpVerifying} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={confirmOtp} disabled={otpVerifying || otpInput.trim().length !== 6} className="btn-primary flex-1">
+                {otpVerifying ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm'}
+              </button>
             </div>
           </div>
         </div>

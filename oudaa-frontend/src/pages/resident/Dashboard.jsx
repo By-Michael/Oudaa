@@ -3,9 +3,11 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { StatCard, Badge, PageHeader, currency, currencyBalance, formatDate, usePagedList, Pager } from '../../components/ui'
+import { portalBase } from '../../lib/paths'
 
 export default function ResidentDashboard() {
   const { user } = useAuth()
+  const base = portalBase(user)
   const { payments, fees, funds, residents, projects } = useData()
 
   const resident = residents.find((r) => r.id === user?.residentId) || residents[0]
@@ -26,10 +28,10 @@ export default function ResidentDashboard() {
       <PageHeader title={`Hi, ${user?.name?.split(' ')[0]}`} subtitle={`Unit ${resident?.unit} · ${user?.community}`} />
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={Wallet} label="You've contributed" value={currency(totalPaid)} sub={`${myPayments.filter(p=>p.status==='paid').length} payments`} accent="brand" to="/resident/payments" />
-        <StatCard icon={Clock} label="Pending dues" value={pending.length} sub={pending.length ? currency(pending.reduce((s,p)=>s+p.amount,0)) + ' outstanding — awaiting or past due' : 'All clear'} accent="amber" to="/resident/payments" />
-        <StatCard icon={Landmark} label="Total community funds" value={currencyBalance(totalFunds, 'short')} sub="Managed transparently" accent="green" to="/resident/funds" />
-        <StatCard icon={FolderKanban} label="Active projects" value={activeProjects} sub="Funded by your community" accent="rose" to="/resident/projects" />
+        <StatCard icon={Wallet} label="You've contributed" value={currency(totalPaid)} sub={`${myPayments.filter(p=>p.status==='paid').length} payments`} accent="brand" to={`${base}/payments`} />
+        <StatCard icon={Clock} label="Pending dues" value={pending.length} sub={pending.length ? currency(pending.reduce((s,p)=>s+p.amount,0)) + ' outstanding — awaiting or past due' : 'All clear'} accent="amber" to={`${base}/payments`} />
+        <StatCard icon={Landmark} label="Total community funds" value={currencyBalance(totalFunds, 'short')} sub="Managed transparently" accent="green" to={`${base}/funds`} />
+        <StatCard icon={FolderKanban} label="Active projects" value={activeProjects} sub="Funded by your community" accent="rose" to={`${base}/projects`} />
       </div>
 
       <div className="grid xl:grid-cols-3 gap-5">

@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext'
 import AppLayout from './layouts/AppLayout'
 import Login from './pages/Login'
 import { RESERVED_PATH_SLUGS } from './lib/subdomain'
+import { portalBase } from './lib/paths'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Landing from './pages/Landing'
@@ -72,14 +73,37 @@ function CommunityLogin() {
 
 function Protected({ role, children }) {
   const { user } = useAuth()
+  const { communitySlug } = useParams()
   if (!user) return <Navigate to="/login" replace />
   // Admins are always also a resident of their own community (see
   // AuthContext#normalizeUser -> residentId), so they're allowed into the
   // resident-side pages too — the top-right account menu lets them switch
   // between the two views. Residents still can't cross into /admin.
   const allowed = user.role === role || (user.role === 'admin' && role === 'resident')
-  if (role && !allowed) return <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace />
+  if (role && !allowed) return <Navigate to={portalBase(user)} replace />
+  // The URL's slug segment is cosmetic (every API call is already scoped
+  // server-side to the signed-in user's own communityId via the JWT, not
+  // by this param), but a signed-in admin browsing to a DIFFERENT
+  // community's /<slug>/admin link should still land in their OWN
+  // portal rather than silently rendering their data under someone
+  // else's URL. Bounce back to the correct slug instead.
+  if (communitySlug && user.communitySlug && communitySlug !== user.communitySlug) {
+    return <Navigate to={portalBase(user)} replace />
+  }
   return children
+}
+
+// Keeps old bookmarks/links to the un-prefixed "/admin" or "/resident"
+// paths working by sending them on to this user's own
+// "/<communitySlug>/admin" (or resident) portal, rather than 404ing or
+// silently rendering with no slug in the URL. Always resolves to the
+// signed-in user's own role/portal regardless of which legacy path was
+// hit, matching the app's existing "you can only ever be in your own
+// portal" behavior.
+function LegacyPortalRedirect() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  return <Navigate to={portalBase(user)} replace />
 }
 
 export default function App() {
@@ -98,21 +122,28 @@ export default function App() {
       <Toaster />
       <ScrollToTop />
       <Routes>
-      <Route path="/" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <Landing />} />
+      <Route path="/" element={user ? <Navigate to={portalBase(user)} replace /> : <Landing />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
-      <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <Login />} />
-      <Route path="/signup" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <Signup />} />
-      <Route path="/forgot-password" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <ForgotPassword />} />
-      <Route path="/reset-password" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <ResetPassword />} />
+      <Route path="/login" element={user ? <Navigate to={portalBase(user)} replace /> : <Login />} />
+      <Route path="/signup" element={user ? <Navigate to={portalBase(user)} replace /> : <Signup />} />
+      <Route path="/forgot-password" element={user ? <Navigate to={portalBase(user)} replace /> : <ForgotPassword />} />
+      <Route path="/reset-password" element={user ? <Navigate to={portalBase(user)} replace /> : <ResetPassword />} />
+
+      {/* Legacy un-prefixed portal paths — old bookmarks/links to
+          "/admin" or "/resident" still work, just bounced on to this
+          user's own "/<communitySlug>/admin(or resident)" URL below,
+          which is the canonical form everything else now points at. */}
+      <Route path="/admin/*" element={<LegacyPortalRedirect />} />
+      <Route path="/resident/*" element={<LegacyPortalRedirect />} />
 
       {/* Every community's own login page: https://<host>/<slug>. Must
           come after every literal path above (so /login, /signup, etc.
           keep matching those exact pages, not this dynamic segment) and
           before the catch-all below. */}
-      <Route path="/:communitySlug" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/resident'} replace /> : <CommunityLogin />} />
+      <Route path="/:communitySlug" element={user ? <Navigate to={portalBase(user)} replace /> : <CommunityLogin />} />
 
-      <Route path="/admin" element={<Protected role="admin"><AppLayout role="admin" /></Protected>}>
+      <Route path="/:communitySlug/admin" element={<Protected role="admin"><AppLayout role="admin" /></Protected>}>
         <Route index element={<Suspense fallback={<RouteFallback />}><AdminDashboard /></Suspense>} />
         <Route path="residents" element={<Suspense fallback={<RouteFallback />}><AdminResidents /></Suspense>} />
         <Route path="fees" element={<Suspense fallback={<RouteFallback />}><AdminFees /></Suspense>} />
@@ -126,7 +157,7 @@ export default function App() {
         <Route path="profile" element={<Suspense fallback={<RouteFallback />}><Profile /></Suspense>} />
       </Route>
 
-      <Route path="/resident" element={<Protected role="resident"><AppLayout role="resident" /></Protected>}>
+      <Route path="/:communitySlug/resident" element={<Protected role="resident"><AppLayout role="resident" /></Protected>}>
         <Route index element={<Suspense fallback={<RouteFallback />}><ResidentDashboard /></Suspense>} />
         <Route path="payments" element={<Suspense fallback={<RouteFallback />}><ResidentPayments /></Suspense>} />
         <Route path="funds" element={<Suspense fallback={<RouteFallback />}><ResidentFunds /></Suspense>} />
@@ -136,7 +167,7 @@ export default function App() {
         <Route path="profile" element={<Suspense fallback={<RouteFallback />}><Profile /></Suspense>} />
       </Route>
 
-      <Route path="*" element={<Navigate to={user ? (user.role === 'admin' ? '/admin' : '/resident') : '/'} replace />} />
+      <Route path="*" element={<Navigate to={user ? portalBase(user) : '/'} replace />} />
       </Routes>
     </>
   )

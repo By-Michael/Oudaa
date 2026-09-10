@@ -5,6 +5,7 @@ import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import api, { endpoints } from '../../lib/api'
 import { StatCard, Badge, PageHeader, Modal, currency, currencyBalance, formatDate, notify, ChartPlaceholder, ChartEmptyState } from '../../components/ui'
+import { portalBase } from '../../lib/paths'
 
 // Headline stat-card numbers and the 6-month trend chart come from
 // dedicated aggregate endpoints (DB-side SUM/COUNT/GROUP BY) instead of
@@ -162,6 +163,7 @@ const COLORS = ['#1554d6', '#2570f5', '#5aa4ff', '#a9caff']
 export default function AdminDashboard() {
   const { residents, payments, funds, projects, fees, expenses, pendingChanges, respondToPendingChange, residentsMeta } = useData()
   const { user } = useAuth()
+  const base = portalBase(user)
   // Only ever show one at a time in the slot — the oldest awaiting this
   // admin's approval — so the widget doesn't need to become a list/carousel.
   const slotPendingChange = (pendingChanges?.asApprover || [])[0] || null
@@ -253,7 +255,7 @@ export default function AdminDashboard() {
           value={currencyBalance(totalBalance, 'short')}
           sub={`Across ${funds.length} fund${funds.length === 1 ? '' : 's'}`}
           accent="brand"
-          to="/admin/funds"
+          to={`${base}/funds`}
         />
         <StatCard
           icon={Wallet}
@@ -262,7 +264,7 @@ export default function AdminDashboard() {
           sub="Verified payments, last 6 months"
           accent="green"
           trend={collectedTrend}
-          to="/admin/payments"
+          to={`${base}/payments`}
           loading={statsLoading}
         />
         <StatCard
@@ -271,7 +273,7 @@ export default function AdminDashboard() {
           value={pendingCount}
           sub="Awaiting verification"
           accent="amber"
-          to="/admin/payments"
+          to={`${base}/payments`}
           loading={statsLoading}
         />
         {slotPendingChange ? (
@@ -283,7 +285,7 @@ export default function AdminDashboard() {
             value={activeProjects}
             sub={`${projects.length} total projects`}
             accent="rose"
-            to="/admin/projects"
+            to={`${base}/projects`}
           />
         )}
       </div>
@@ -416,7 +418,7 @@ export default function AdminDashboard() {
         <div className="card p-5 xl:col-span-2 animate-fade-up">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-ink-800">Recent payments</h3>
-            <a href="/admin/payments" className="text-xs font-semibold text-brand-600 flex items-center gap-1 hover:gap-1.5 transition-all">
+            <a href={`${base}/payments`} className="text-xs font-semibold text-brand-600 flex items-center gap-1 hover:gap-1.5 transition-all">
               View all <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </div>

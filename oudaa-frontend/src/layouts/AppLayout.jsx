@@ -14,29 +14,39 @@ import api, { endpoints, fileUrl } from '../lib/api'
 import { currency, formatDate, Modal, PageSkeleton, notify } from '../components/ui'
 import { getNotificationPrefs, onNotificationPrefsChanged } from '../lib/notificationPrefs'
 import HelpSupportPanel from '../components/HelpSupportPanel'
+import { portalBase } from '../lib/paths'
 
-const adminNav = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/residents', label: 'Residents', icon: Users },
-  { to: '/admin/fees', label: 'Fees', icon: Receipt },
-  { to: '/admin/payments', label: 'Payments', icon: Wallet },
-  { to: '/admin/funds', label: 'Funds', icon: Landmark },
-  { to: '/admin/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/admin/expenses', label: 'Expenses', icon: FileText },
-  { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/admin/audit-log', label: 'Audit Log', icon: ShieldCheck },
-  { to: '/admin/settings', label: 'Settings', icon: Settings },
-]
+// Nav items are built off `base` (the signed-in user's own
+// "/<communitySlug>/admin" or "/<communitySlug>/resident" prefix — see
+// lib/paths.js#portalBase) rather than hardcoded "/admin" / "/resident",
+// so the community's slug stays in the URL for every page in the portal,
+// not just the top-level route.
+function buildAdminNav(base) {
+  return [
+    { to: base, label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: `${base}/residents`, label: 'Residents', icon: Users },
+    { to: `${base}/fees`, label: 'Fees', icon: Receipt },
+    { to: `${base}/payments`, label: 'Payments', icon: Wallet },
+    { to: `${base}/funds`, label: 'Funds', icon: Landmark },
+    { to: `${base}/projects`, label: 'Projects', icon: FolderKanban },
+    { to: `${base}/expenses`, label: 'Expenses', icon: FileText },
+    { to: `${base}/reports`, label: 'Reports', icon: BarChart3 },
+    { to: `${base}/audit-log`, label: 'Audit Log', icon: ShieldCheck },
+    { to: `${base}/settings`, label: 'Settings', icon: Settings },
+  ]
+}
 
-const residentNav = [
-  { to: '/resident', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/resident/payments', label: 'My Payments', icon: Wallet },
-  { to: '/resident/funds', label: 'Community Funds', icon: Landmark },
-  { to: '/resident/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/resident/expenses', label: 'Expenses', icon: FileText },
-  { to: '/resident/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/resident/profile', label: 'Profile', icon: UserCog },
-]
+function buildResidentNav(base) {
+  return [
+    { to: base, label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: `${base}/payments`, label: 'My Payments', icon: Wallet },
+    { to: `${base}/funds`, label: 'Community Funds', icon: Landmark },
+    { to: `${base}/projects`, label: 'Projects', icon: FolderKanban },
+    { to: `${base}/expenses`, label: 'Expenses', icon: FileText },
+    { to: `${base}/reports`, label: 'Reports', icon: BarChart3 },
+    { to: `${base}/profile`, label: 'Profile', icon: UserCog },
+  ]
+}
 
 const CHANGE_TYPE_LABELS = {
   COMMUNITY_PAYMENT_DETAILS: 'community payment account details',
@@ -57,13 +67,17 @@ function describePendingChangeDiff(diff) {
 }
 
 export default function AppLayout({ role }) {
-  const nav = role === 'admin' ? adminNav : residentNav
-  const base = role === 'admin' ? '/admin' : '/resident'
   const [open, setOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const { user, logout, patchUser } = useAuth()
+  // `role` here is which SIDE of the app is being rendered (an admin can
+  // still browse the resident view of their own community — see
+  // Protected in App.jsx), not necessarily user.role, so the slug comes
+  // from the user but the /admin vs /resident segment comes from `role`.
+  const base = user?.communitySlug ? `/${user.communitySlug}/${role}` : `/${role}`
+  const nav = role === 'admin' ? buildAdminNav(base) : buildResidentNav(base)
   const [collapsed, setCollapsedState] = useState(() => user?.preferences?.sidebarCollapsed === true)
   const [navCollapsed, setNavCollapsed] = useState(collapsed)
   const [query, setQuery] = useState('')
@@ -485,14 +499,14 @@ export default function AppLayout({ role }) {
                 {user?.role === 'admin' && (
                   role === 'admin' ? (
                     <button
-                      onClick={() => { setMenuOpen(false); navigate('/resident') }}
+                      onClick={() => { setMenuOpen(false); navigate(user?.communitySlug ? `/${user.communitySlug}/resident` : '/resident') }}
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink-600 hover:bg-brand-50 hover:text-brand-700 mt-1 whitespace-nowrap"
                     >
                       <Users className="h-4 w-4 shrink-0" /> Switch to resident view
                     </button>
                   ) : (
                     <button
-                      onClick={() => { setMenuOpen(false); navigate('/admin') }}
+                      onClick={() => { setMenuOpen(false); navigate(user?.communitySlug ? `/${user.communitySlug}/admin` : '/admin') }}
                       className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink-600 hover:bg-brand-50 hover:text-brand-700 mt-1 whitespace-nowrap"
                     >
                       <ShieldCheck className="h-4 w-4 shrink-0" /> Switch to admin view

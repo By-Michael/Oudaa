@@ -25,6 +25,10 @@ function normalizeUser(u) {
     rawRole: u.role,
     community: u.community?.name || '',
     communityId: u.communityId,
+    // Drives every /<slug>/admin or /<slug>/resident URL in the app (see
+    // lib/paths.js#portalBase) — comes from the community relation the
+    // backend already includes on both /auth/login and /auth/me.
+    communitySlug: u.community?.slug || null,
     residentId: u.resident?.id,
     unitNumber: u.resident?.unitNumber,
     avatarColor: avatarColorFor(u.id),

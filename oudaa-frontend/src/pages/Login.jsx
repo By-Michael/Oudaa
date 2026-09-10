@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import HexHive from '../components/HexHive'
 import api, { endpoints } from '../lib/api'
 import { currentCommunitySlug } from '../lib/subdomain'
+import { portalBase } from '../lib/paths'
 
 export default function Login({ communitySlug: propSlug }) {
   const { login, loading, error, demoLogins } = useAuth()
@@ -61,7 +62,7 @@ export default function Login({ communitySlug: propSlug }) {
     try {
       const identifier = method === 'email' ? email : phone
       const u = await login(identifier, password, communitySlug || undefined)
-      const dest = location.state?.from || (u.role === 'admin' ? '/admin' : '/resident')
+      const dest = location.state?.from || portalBase(u)
       navigate(dest, { replace: true })
     } catch {
       // error shown via context
@@ -74,7 +75,7 @@ export default function Login({ communitySlug: propSlug }) {
     setPassword(d.password)
     try {
       const u = await login(d.email, d.password, communitySlug || undefined)
-      const dest = location.state?.from || (u.role === 'admin' ? '/admin' : '/resident')
+      const dest = location.state?.from || portalBase(u)
       navigate(dest, { replace: true })
     } catch {
       // error shown via context

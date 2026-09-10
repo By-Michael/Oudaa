@@ -50,10 +50,13 @@ export default function Profile() {
   // currently browsing under (the /admin vs /resident URL prefix), not
   // just user.role. Otherwise committee-only tabs (Community, Approvals,
   // Membership) kept showing up even while looking at things as a
-  // resident would. A real resident account can never reach /admin/* in
-  // the first place (that route is already role-protected), so this only
-  // ever narrows what an admin sees, never widens what a resident can.
-  const isCommittee = user?.role === 'admin' && location.pathname.startsWith('/admin')
+  // resident would. A real resident account can never reach /<slug>/admin/*
+  // in the first place (that route is already role-protected), so this
+  // only ever narrows what an admin sees, never widens what a resident
+  // can. Every portal URL is now "/<communitySlug>/admin/..." or
+  // "/<communitySlug>/resident/..." (see lib/paths.js#portalBase), so
+  // check for "/admin" as a path SEGMENT rather than a leading prefix.
+  const isCommittee = user?.role === 'admin' && /\/admin(\/|$)/.test(location.pathname)
   const roleKey = isCommittee ? 'admin' : 'resident'
   const visibleTabs = TABS.filter((t) => t.roles.includes(roleKey))
 

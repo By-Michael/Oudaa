@@ -479,6 +479,7 @@ function StepReview({ data, onEdit, submitError }) {
 
 function SuccessScreen() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   return (
     <div className="mx-auto max-w-lg py-10 text-center">
       <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand-gradient shadow-glow">
@@ -493,7 +494,7 @@ function SuccessScreen() {
         You're already signed in here, so you can head straight to your dashboard to add residents, connect a payment account, and start collecting fees.
       </p>
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <button type="button" onClick={() => navigate('/admin')} className="btn-primary px-8 py-3">
+        <button type="button" onClick={() => navigate(user?.communitySlug ? `/${user.communitySlug}/admin` : '/admin')} className="btn-primary px-8 py-3">
           Go to dashboard <ArrowRight size={16} />
         </button>
         <Link to="/" className="btn-secondary px-8 py-3">Back to home</Link>
@@ -574,7 +575,13 @@ export default function Signup() {
       })
 
       const { community, user, accessToken } = res.data
-      adoptSession(accessToken, user)
+      // Unlike /auth/login and /auth/me, registerCommunity's `user` isn't
+      // returned with the `community` relation included (it's built in
+      // the same transaction as `community`, so the caller already has
+      // it separately) — attach it here so normalizeUser can populate
+      // communitySlug and every /<slug>/admin link works immediately,
+      // with no extra round trip to /auth/me.
+      adoptSession(accessToken, { ...user, community })
 
       // Create every fee the admin configured now that we're authenticated
       // as the new community's admin. Best-effort per row — one bad fee

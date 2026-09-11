@@ -29,11 +29,8 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-12 bg-white">
       <div className="w-full max-w-sm animate-fade-up">
-        <div className="flex items-center gap-0.5 mb-8">
-          <span className="brand-mark h-12 w-12 grid place-items-center shrink-0">
-            <img src="/oudaa-h-mark.png" alt="Oudaa" className="h-9 w-9 object-contain" />
-          </span>
-          <span className="font-display font-bold text-lg text-ink-900 -ml-1">udaa</span>
+        <div className="flex items-center justify-center mb-8">
+          <img src="/oudaa-logo-full.png" alt="Oudaa" className="h-9 w-auto object-contain" />
         </div>
 
         {sent ? (

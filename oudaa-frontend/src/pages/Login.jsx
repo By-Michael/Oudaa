@@ -125,7 +125,7 @@ export default function Login({ communitySlug: propSlug }) {
           </div>
         </div>
 
-        <footer>© {new Date().getFullYear()} Community Fund Management System · v1.0</footer>
+        <footer>© {new Date().getFullYear()} Oudaa</footer>
       </section>
 
       <section className="login-wrap">

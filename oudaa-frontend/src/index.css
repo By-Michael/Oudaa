@@ -210,10 +210,11 @@
    Scope: the toggle sets `.dark` on <html>, so it covers the whole
    document (needed because the header's global search dropdown is
    portaled to document.body, outside the app shell's own DOM subtree).
-   The `.login-page` block at the bottom deliberately re-forces the
-   sign-in screen back to its bright brand look even if `.dark` is
-   still set from a previous session — the login screen always stays
-   on the white/blue default.
+   The login/community-login screen (pages/Login.jsx) used to be
+   force-locked to always render bright regardless of this class — it
+   now has its own real light/dark variants instead (see
+   pages/Login.css's `.auth-hero` / `.dark .auth-hero` blocks), so no
+   override lives here anymore for that page.
    ============================================================= */
 .dark { color-scheme: dark; }
 
@@ -299,33 +300,3 @@
    backdrop to stay visible. */
 .brand-mark { background-color: transparent; box-shadow: none; }
 .dark .brand-mark { background-color: transparent; box-shadow: none; }
-
-/* =============================================================
-   LOGIN PAGE — always the bright default, never affected by `.dark`
-   ============================================================= */
-.dark .login-page.bg-white\/80,
-.dark .login-page { background-color: transparent; }
-.dark .login-page .bg-white,
-.dark .login-page .bg-white\/80,
-.dark .login-page .bg-white\/70 { background-color: #ffffff; }
-.dark .login-page .bg-ink-50,
-.dark .login-page .bg-ink-50\/70,
-.dark .login-page .bg-ink-50\/60 { background-color: #f6f7fb; }
-.dark .login-page .bg-ink-100 { background-color: #eceef5; }
-.dark .login-page .hover\:bg-ink-100:hover,
-.dark .login-page .hover\:bg-ink-200:hover { background-color: #eceef5; }
-.dark .login-page .border-ink-50,
-.dark .login-page .border-ink-100,
-.dark .login-page .border-ink-200 { border-color: #d7dbe8; }
-.dark .login-page .text-ink-900 { color: #191d2e; }
-.dark .login-page .text-ink-800 { color: #2a2f47; }
-.dark .login-page .text-ink-700 { color: #3e4462; }
-.dark .login-page .text-ink-600 { color: #4f5779; }
-.dark .login-page .text-ink-500 { color: #666f94; }
-.dark .login-page .text-ink-400 { color: #8790b3; }
-.dark .login-page input,
-.dark .login-page .input { background-color: #ffffff; color: #191d2e; border-color: #d7dbe8; }
-.dark .login-page h1,
-.dark .login-page h2,
-.dark .login-page h3,
-.dark .login-page h4 { color: #191d2e; }

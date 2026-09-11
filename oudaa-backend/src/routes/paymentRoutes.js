@@ -4,6 +4,7 @@ const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
 const tenantScope = require('../middleware/tenantScope');
 const validate = require('../middleware/validate');
+const { externalApiLimiter } = require('../middleware/rateLimiters');
 const { screenshotUpload, upload } = require('../config/upload');
 const {
   createPaymentSchema,
@@ -24,6 +25,7 @@ router.get('/', authorize('ADMIN', 'RESIDENT'), ctrl.listPayments);
 router.post(
   '/self-verify',
   authorize('RESIDENT'),
+  externalApiLimiter,
   validate(selfVerifyPaymentSchema),
   ctrl.selfVerifyPayment
 );
@@ -32,6 +34,7 @@ router.post(
 router.post(
   '/self-verify/receipt',
   authorize('RESIDENT'),
+  externalApiLimiter,
   upload.single('receipt'),
   ctrl.uploadSelfPaymentReceipt
 );
@@ -39,6 +42,7 @@ router.post(
 router.post(
   '/parse-screenshot',
   authorize('ADMIN', 'RESIDENT'),
+  externalApiLimiter,
   screenshotUpload.single('screenshot'),
   ctrl.parsePaymentScreenshot
 );

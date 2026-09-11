@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { Landmark, Mail, Phone, Lock, Eye, EyeOff, ShieldCheck, TrendingUp, Users } from 'lucide-react'
+import { Mail, Phone, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, TrendingUp, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import HexHive from '../components/HexHive'
 import api, { endpoints } from '../lib/api'
 import { currentCommunitySlug } from '../lib/subdomain'
 import { portalBase } from '../lib/paths'
+import './Login.css'
+
+const features = [
+  { icon: ShieldCheck, text: 'Every payment logged with a verifiable receipt trail' },
+  { icon: TrendingUp, text: 'Live fund balances across security, maintenance & projects' },
+  { icon: Users, text: 'Residents see exactly where their contributions go' },
+]
 
 export default function Login({ communitySlug: propSlug }) {
   const { login, loading, error, demoLogins } = useAuth()
@@ -45,12 +51,12 @@ export default function Login({ communitySlug: propSlug }) {
   // "Invalid credentials" message (see authController.login).
   if (communitySlug && communityLookupFailed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white px-6">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-ink-900 px-6">
         <div className="max-w-sm text-center">
           <img src="/oudaa-logo-full.png" alt="Oudaa" className="mx-auto mb-6 h-9 w-auto object-contain" />
-          <h2 className="text-xl font-bold text-ink-900">Community not found</h2>
-          <p className="mt-2 text-sm text-ink-500">
-            There's no community at <span className="font-medium text-ink-700">/{communitySlug}</span>. Check the link your committee shared with you, or contact them for your community's correct sign-in address.
+          <h2 className="text-xl font-bold text-ink-900 dark:text-ink-50">Community not found</h2>
+          <p className="mt-2 text-sm text-ink-500 dark:text-ink-400">
+            There's no community at <span className="font-medium text-ink-700 dark:text-ink-300">/{communitySlug}</span>. Check the link your committee shared with you, or contact them for your community's correct sign-in address.
           </p>
         </div>
       </div>
@@ -83,178 +89,120 @@ export default function Login({ communitySlug: propSlug }) {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 login-page">
-      {/* Left - brand panel */}
-      <div
-        className="hidden lg:flex flex-col justify-between relative overflow-hidden px-12 py-10 text-white"
-        style={{
-          background:
-            'linear-gradient(135deg, #0b2b6b 0%, #1554d6 42%, #2570f5 75%, #4f94ff 100%)',
-        }}
-      >
-        <HexHive />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to right, rgba(6,20,58,0.55) 0%, rgba(8,28,77,0.30) 45%, rgba(8,28,77,0.10) 75%)',
-          }}
-        />
-        <div className="relative z-10 flex items-center">
-          <img src="/oudaa-logo-full.png" alt="Oudaa" className="h-11 w-auto object-contain" />
-        </div>
+    <main className="auth-hero">
+      <div className="bg-photo" aria-hidden="true" />
+      <div className="bg-wash" aria-hidden="true" />
 
-        <div className="relative z-10 max-w-md">
-          <h1
-            className="font-display text-4xl font-extrabold leading-tight tracking-tight"
-            style={{ textShadow: '0 2px 14px rgba(0,0,0,0.45)' }}
-          >
-            Every birr accounted for. Every resident in the loop.
+      <section className="hero">
+        <header className="brand">
+          <img src="/oudaa-logo-full.png" alt="Oudaa" />
+        </header>
+
+        <div className="copy">
+          <h1>
+            Every birr accounted for.
+            <br />
+            Every <span>resident in the</span>
+            <br />
+            <span>loop.</span>
           </h1>
-          <p
-            className="mt-4 text-white/95 text-base font-medium leading-relaxed"
-            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.35)' }}
-          >
-            A single, transparent home for contributions, community funds, projects, and receipts —
-            built for committees and residents to trust the same numbers.
+
+          <p className="lead">
+            A single, transparent home for contributions,
+            <br className="desktop" />
+            community funds, projects, and receipts — built
+            <br className="desktop" />
+            for committees and residents to trust the same numbers.
           </p>
 
-          <div className="mt-10 space-y-4">
-            <Feature icon={ShieldCheck} text="Every payment logged with a verifiable receipt trail" />
-            <Feature icon={TrendingUp} text="Live fund balances across security, maintenance & projects" />
-            <Feature icon={Users} text="Residents see exactly where their contributions go" />
+          <div className="features">
+            {features.map(({ icon: Icon, text }) => (
+              <div className="feature" key={text}>
+                <div className="feature-icon"><Icon className="h-[19px] w-[19px]" /></div>
+                <p>{text}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        <p className="relative z-10 text-xs font-semibold text-white/85">© {new Date().getFullYear()} Community Fund Management System · v1.0</p>
-      </div>
+        <footer>© {new Date().getFullYear()} Community Fund Management System · v1.0</footer>
+      </section>
 
-      {/* Right - form */}
-      <div className="flex items-center justify-center px-6 py-12 bg-white">
-        <div className="w-full max-w-sm animate-fade-up">
-          <div className="lg:hidden flex items-center justify-center mb-8">
-            <img src="/oudaa-logo-full.png" alt="Oudaa" className="h-11 w-auto object-contain" />
-          </div>
+      <section className="login-wrap">
+        <div className="login-card">
+          <div className="leaf leaf-top" />
+          <div className="leaf leaf-bottom" />
 
-          <h2 className="text-2xl font-bold text-ink-900">
-            {community ? `Sign in to ${community.name}` : 'Welcome back'}
-          </h2>
-          <p className="mt-1.5 text-sm text-ink-500">Sign in to manage your community's finances.</p>
+          <div className="login-content">
+            <img className="card-logo" src="/oudaa-logo-full.png" alt="Oudaa" />
 
-          <form onSubmit={onSubmit} className="mt-7 space-y-4">
-            <div>
-              <label className="label">Sign in with</label>
-              <div className="relative flex rounded-xl border border-ink-200 bg-ink-50 p-1">
-                <span
-                  className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-white shadow-soft transition-transform duration-300 ease-out"
-                  style={{ transform: method === 'phone' ? 'translateX(calc(100% + 8px))' : 'translateX(0)' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setMethod('email')}
-                  className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-sm font-medium transition-colors duration-200 ${method === 'email' ? 'text-brand-600' : 'text-ink-400 hover:text-ink-600'}`}
-                >
-                  <Mail className="h-3.5 w-3.5" /> Email
+            <h2>{community ? `Sign in to ${community.name}` : 'Welcome back'}</h2>
+            <p className="subtitle">Sign in to manage your community's finances.</p>
+
+            <form onSubmit={onSubmit}>
+              <label className="section-label">SIGN IN WITH</label>
+
+              <div className="method-toggle">
+                <button type="button" className={method === 'email' ? 'active' : ''} onClick={() => setMethod('email')}>
+                  <Mail className="h-[17px] w-[17px]" /> Email
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setMethod('phone')}
-                  className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-sm font-medium transition-colors duration-200 ${method === 'phone' ? 'text-brand-600' : 'text-ink-400 hover:text-ink-600'}`}
-                >
-                  <Phone className="h-3.5 w-3.5" /> Phone
+                <button type="button" className={method === 'phone' ? 'active' : ''} onClick={() => setMethod('phone')}>
+                  <Phone className="h-[17px] w-[17px]" /> Phone
                 </button>
               </div>
-            </div>
 
-            {method === 'email' ? (
-              <div>
-                <label className="label">Email address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
-                  <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@community.org" className="input pl-10" />
-                </div>
+              <label className="field-label">{method === 'email' ? 'EMAIL ADDRESS' : 'PHONE NUMBER'}</label>
+              <div className="input-wrap">
+                {method === 'email' ? <Mail className="h-[18px] w-[18px]" /> : <Phone className="h-[18px] w-[18px]" />}
+                {method === 'email' ? (
+                  <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@community.org" />
+                ) : (
+                  <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+251 9XX XXX XXX" />
+                )}
               </div>
-            ) : (
-              <div className="animate-fade-up">
-                <label className="label">Phone number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
-                  <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+251 9xx xxx xxx" className="input pl-10" />
+
+              <label className="field-label">PASSWORD</label>
+              <div className="input-wrap">
+                <Lock className="h-[18px] w-[18px]" />
+                <input required type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                <button className="icon-button" type="button" aria-label={showPw ? 'Hide password' : 'Show password'} onClick={() => setShowPw((v) => !v)}>
+                  {showPw ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                </button>
+              </div>
+
+              {error && <div className="form-error">{error}</div>}
+
+              <div className="options">
+                <label className="remember">
+                  <input type="checkbox" />
+                  <span>Remember me</span>
+                </label>
+                <Link to="/forgot-password" className="forgot">Forgot password?</Link>
+              </div>
+
+              <button className="signin" type="submit" disabled={loading}>
+                {!loading && <ArrowRight className="h-[18px] w-[18px]" />}
+                <span>{loading ? 'Signing in…' : 'Sign in'}</span>
+              </button>
+            </form>
+
+            {!communitySlug && (
+              <div className="demo">
+                <strong>Try the demo</strong>
+                <span>One click, no typing — signs you straight in.</span>
+                <div className="demo-buttons">
+                  <button type="button" disabled={loading} onClick={() => fillDemo('admin')}>
+                    {loading ? 'Signing in…' : 'Committee login'}
+                  </button>
+                  <button type="button" disabled={loading} onClick={() => fillDemo('resident')}>
+                    {loading ? 'Signing in…' : 'Resident login'}
+                  </button>
                 </div>
               </div>
             )}
-            <div>
-              <label className="label">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
-                <input required type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" className="input pl-10 pr-10" />
-                <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600">
-                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="rounded-xl bg-rose-50 border border-rose-100 px-3.5 py-2.5 text-sm text-rose-600">
-                {error}
-              </div>
-            )}
-
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 text-ink-500">
-                <input type="checkbox" className="rounded border-ink-300 text-brand-600 focus:ring-brand-400" />
-                Remember me
-              </label>
-              <Link to="/forgot-password" className="text-brand-600 font-medium hover:text-brand-700">Forgot password?</Link>
-            </div>
-
-            <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-              {loading ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-
-          {!communitySlug && (
-          <div className="mt-6 rounded-2xl border border-dashed border-brand-200 bg-brand-50/60 p-4">
-            <p className="text-xs font-semibold text-brand-700 mb-1">Try the demo</p>
-            <p className="text-[11px] text-ink-400 mb-2">One click, no typing — signs you straight in.</p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => fillDemo('admin')}
-                className="btn-secondary flex-1 !py-2 text-xs disabled:opacity-60"
-              >
-                {loading ? 'Signing in…' : 'Committee login'}
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => fillDemo('resident')}
-                className="btn-secondary flex-1 !py-2 text-xs disabled:opacity-60"
-              >
-                {loading ? 'Signing in…' : 'Resident login'}
-              </button>
-            </div>
           </div>
-          )}
         </div>
-      </div>
-    </div>
-  )
-}
-
-function Feature({ icon: Icon, text }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="h-8 w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/30 shrink-0">
-        <Icon className="h-4 w-4" />
-      </div>
-      <p className="text-sm font-semibold text-white" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>
-        {text}
-      </p>
-    </div>
+      </section>
+    </main>
   )
 }

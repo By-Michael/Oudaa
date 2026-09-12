@@ -10,6 +10,13 @@
 ALTER TABLE "payments" DROP CONSTRAINT IF EXISTS "payments_projectId_fkey";
 ALTER TABLE "payments" DROP CONSTRAINT IF EXISTS "payments_fundId_fkey";
 
+-- payments.projectId was declared on the Payment model but never actually
+-- added to the table by any prior migration (only fundId was, in
+-- 20260808120000_add_payment_fund_relation). Add it now so the FK below
+-- has a column to attach to.
+ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "projectId" TEXT;
+CREATE INDEX IF NOT EXISTS "payments_projectId_idx" ON "payments"("projectId");
+
 ALTER TABLE "payments"
   ADD CONSTRAINT "payments_projectId_fkey"
   FOREIGN KEY ("projectId") REFERENCES "projects"("id")

@@ -15,9 +15,13 @@ const {
 const router = express.Router();
 
 // Throttle auth endpoints to blunt credential-stuffing / brute force.
+// Same production-only-strict pattern as the general limiter in app.js —
+// a real test suite legitimately fires far more than 20 auth requests
+// against the same IP inside one 15-minute window, so the strict cap only
+// applies in production.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: process.env.NODE_ENV === 'production' ? 20 : 5000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many attempts, please try again later' },

@@ -8,6 +8,7 @@ oudaa-frontend/node_modules/
 .env.local
 .env.*.local
 oudaa-backend/.env
+oudaa-backend/.env.test
 oudaa-frontend/.env
 
 # ---- Build output ----

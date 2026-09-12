@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 // Rate limiters for endpoints that are either (a) backed by a paid
 // external API call per request, or (b) a security-sensitive code/guess
@@ -13,7 +14,7 @@ const rateLimit = require('express-rate-limit');
 // the two limiters that predate this file — left in place as-is.
 
 function byUserThenIp(req) {
-  return req.user?.id || req.ip;
+  return req.user?.id || ipKeyGenerator(req.ip);
 }
 
 // Bank-verification (self-verify) and OCR (parse-screenshot) both call a

@@ -22,7 +22,7 @@ module.exports = function validate(schema) {
         path: i.path.join('.'),
         message: i.message,
       }));
-      return next(new AppError('Validation failed', 422, details));
+      return next(new AppError('Validation failed', 400, details));
     }
 
     if (result.data.body) req.body = result.data.body;

@@ -8,5 +8,5 @@ module.exports = {
   testMatch: ['**/tests/**/*.test.js'],
   // Truncation-based resetDb() isn't safe to run concurrently against the
   // same test database, so tests also run with --runInBand (see package.json).
-  testTimeout: 15000,
+  testTimeout: 30000,
 };

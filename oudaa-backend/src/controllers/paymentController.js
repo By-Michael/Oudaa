@@ -779,7 +779,12 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
     flags: flags.length > 0 ? flags.join(' ') : null,
   });
 
-  res.status(201).json({ success: true, data: payment });
+  // Every other return path in this endpoint (idempotent replay, CBE
+  // no-reference fallback) responds with a plain 200 via res.json — this
+  // was the one path still using 201, inconsistent with the rest of
+  // self-verify being treated as a verification action rather than a
+  // plain REST resource creation.
+  res.json({ success: true, data: payment });
 });
 
 // Best-effort autofill: OCR the uploaded screenshot, then let an LLM

@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Users,
   Sparkles,
-  Search,
   Menu,
   X,
   Sun,
@@ -68,21 +67,46 @@ function SectionHeading({ title, body }) {
 /* ----------------------------------------------------------------- */
 /* Navbar                                                             */
 /* ----------------------------------------------------------------- */
+const NAV_LINKS = [
+  { label: 'Home', href: '#top' },
+  { label: 'About us', href: '#solution' },
+  { label: 'Solutions', href: '#features' },
+  { label: 'Contact', href: '#faq' },
+]
+
 function Navbar() {
   const [open, setOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
-
-  const navLinks = [
-    { label: 'Home', href: '#top' },
-    { label: 'About us', href: '#solution' },
-    { label: 'Solutions', href: '#features' },
-    { label: 'Contact', href: '#faq' },
-  ]
+  const navLinks = NAV_LINKS
   // Source repo highlights the current page via usePathname(). This is a
-  // single page with anchor links rather than separate routes, so "Home"
-  // — the top of this page — is always the active one, matching the
-  // reference screenshot's highlighted pill exactly.
-  const activeLabel = 'Home'
+  // single page with anchor links rather than separate routes, so instead
+  // we track which section is currently in view with an IntersectionObserver
+  // and highlight that link's pill — "Home" while at the top, then whichever
+  // section the person has scrolled to.
+  const [activeHref, setActiveHref] = useState('#top')
+
+  useEffect(() => {
+    const sections = NAV_LINKS
+      .map((l) => document.getElementById(l.href.slice(1)))
+      .filter(Boolean)
+    if (!sections.length) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting)
+        if (visible.length === 0) return
+        // If multiple sections are partially visible at once, prefer
+        // whichever one's top edge is closest to the navbar.
+        const top = visible.reduce((a, b) => (a.boundingClientRect.top < b.boundingClientRect.top ? a : b))
+        setActiveHref('#' + top.target.id)
+      },
+      { rootMargin: '-96px 0px -70% 0px', threshold: 0 }
+    )
+    sections.forEach((s) => observer.observe(s))
+    return () => observer.disconnect()
+  }, [])
+
+  const activeLabel = navLinks.find((l) => l.href === activeHref)?.label ?? 'Home'
 
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#d7dde9] bg-[#eef1f9]/80 backdrop-blur-md dark:border-[#01df9e]/30 dark:bg-[#0b1120]/80">
@@ -92,7 +116,7 @@ function Navbar() {
             <img src="/oudaa-logo-full.png" alt="Oudaa logo" className="h-9 w-auto object-contain" />
           </a>
 
-          <div className="hidden items-center gap-1 lg:flex">
+          <div className="hidden items-center gap-1 md:flex">
             {navLinks.map((l) => (
               <a
                 key={l.label}
@@ -108,16 +132,7 @@ function Navbar() {
             ))}
           </div>
 
-          <div className="hidden items-center gap-4 lg:flex">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                className="w-48 rounded-full border-2 border-[#d7dde9] bg-[#eef1f9]/50 px-4 py-2 text-sm text-[#191d2e] placeholder-[#666f94] focus:bg-[#eef1f9] focus:outline-none dark:border-gray-600 dark:bg-[#0b1120]/50 dark:text-[#dfe4f2] dark:placeholder-[#8d97c2] dark:focus:bg-[#0b1120]"
-              />
-              <Search className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-[#00a8d1] dark:text-[#00b6fc]" />
-            </div>
-
+          <div className="hidden items-center gap-4 md:flex">
             <Link to="/signup">
               <button className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#0f9e7a] to-[#00a8d1] px-6 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg dark:from-[#01df9e] dark:to-[#00b6fc] dark:text-[#0b1120]">
                 <Users className="h-4 w-4" />
@@ -135,7 +150,7 @@ function Navbar() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-2 md:hidden">
             <button type="button" onClick={toggleTheme} className="p-2 text-[#191d2e] dark:text-[#dfe4f2]">
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -150,7 +165,7 @@ function Navbar() {
         </div>
 
         {open && (
-          <div className="space-y-3 border-t border-[#d7dde9] bg-white/50 py-4 backdrop-blur-md dark:border-[#01df9e]/30 dark:bg-[#131b30]/50 lg:hidden">
+          <div className="space-y-3 border-t border-[#d7dde9] bg-white/50 py-4 backdrop-blur-md dark:border-[#01df9e]/30 dark:bg-[#131b30]/50 md:hidden">
             {navLinks.map((l) => (
               <a
                 key={l.label}
@@ -245,13 +260,13 @@ function DashboardPreview() {
 /* ----------------------------------------------------------------- */
 function Hero() {
   return (
-    <section id="top" className="relative flex items-center justify-center overflow-hidden py-24 lg:py-32">
+    <section id="top" className="relative flex scroll-mt-24 items-center justify-center overflow-hidden py-24 lg:py-32">
       <div className="absolute inset-0 bg-[#eef1f9] dark:bg-[#0b1120]" />
       <div className="pointer-events-none absolute left-10 top-20 h-32 w-32 rounded-full bg-[#00a8d1]/10 blur-3xl dark:bg-[#00b6fc]/10" />
       <div className="pointer-events-none absolute bottom-40 right-20 h-40 w-40 rounded-full bg-[#0a63d8]/10 blur-3xl dark:bg-[#2f7dff]/10" />
 
       <div className="relative z-20 mx-auto w-full max-w-[1600px] px-6 lg:px-10">
-        <div className="grid items-center gap-16 lg:grid-cols-2">
+        <div className="grid items-center gap-16 md:grid-cols-2">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 text-[#00a8d1]/80 dark:text-[#00b6fc]/80">
               <Sparkles className="h-5 w-5" />
@@ -259,7 +274,7 @@ function Hero() {
             </div>
 
             <div className="space-y-6">
-              <h1 className="text-balance text-6xl font-semibold leading-tight">
+              <h1 className="text-balance text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
                 <span className="bg-gradient-to-r from-[#0f9e7a] via-[#00a8d1] to-[#0a63d8] bg-clip-text text-transparent dark:from-[#01df9e] dark:via-[#00b6fc] dark:to-[#2f7dff]">
                   Run Your Community's Funds With Full Transparency
                 </span>
@@ -288,7 +303,7 @@ function Hero() {
             </div>
           </div>
 
-          <div className="hidden flex-col items-center gap-8 lg:flex">
+          <div className="hidden flex-col items-center gap-8 md:flex">
             <div className="w-full">
               <DashboardPreview />
             </div>
@@ -340,7 +355,7 @@ function Solution() {
     { title: 'Full Audit Log', description: 'A permanent record of every meaningful action taken in a community, visible to every committee member', icon: FileClock },
   ]
   return (
-    <section id="solution" className="relative overflow-hidden px-6 py-24 lg:px-10">
+    <section id="solution" className="relative scroll-mt-24 overflow-hidden px-6 py-24 lg:px-10">
       <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="One Platform. Complete Transparency." body="Everything a committee needs to manage community funds, simplified." />
         <div className="grid gap-8 md:grid-cols-2">
@@ -370,7 +385,7 @@ function Features() {
     { icon: Users, title: 'Role-Based Access', description: 'Separate ADMIN (committee) and RESIDENT permissions, scoped to each community' },
   ]
   return (
-    <section id="features" className="relative overflow-hidden bg-[#0f9e7a]/5 px-6 py-24 lg:px-10 dark:bg-[#01df9e]/10">
+    <section id="features" className="relative scroll-mt-24 overflow-hidden bg-[#0f9e7a]/5 px-6 py-24 lg:px-10 dark:bg-[#01df9e]/10">
       <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="Core Features" body="Everything your committee needs in one unified platform" />
         <div className="grid gap-6 md:grid-cols-3">
@@ -407,7 +422,7 @@ function UseCases() {
     { icon: Landmark, title: 'Any Self-Governing Group', description: 'A general engine for dues, funds, and approvals' },
   ]
   return (
-    <section id="use-cases" className="relative overflow-hidden px-6 py-24 lg:px-10">
+    <section id="use-cases" className="relative scroll-mt-24 overflow-hidden px-6 py-24 lg:px-10">
       <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="Who Oudaa Is For" body="Built for community management, designed to serve any membership-based organization" />
 
@@ -449,7 +464,7 @@ function Testimonials() {
     { quote: 'Sensitive changes now need more than one signature. That alone was worth switching.', author: 'Yonas Girma', role: 'Committee Member, Meskel Flower Estate', stats: 'Multi-party approvals' },
   ]
   return (
-    <section id="testimonials" className="relative overflow-hidden px-6 py-24 lg:px-10">
+    <section id="testimonials" className="relative scroll-mt-24 overflow-hidden px-6 py-24 lg:px-10">
       <div className="mx-auto max-w-[1600px]">
         <SectionHeading title="Trusted by Committees" body="See why communities choose Oudaa to manage their funds" />
         <div className="grid gap-6 md:grid-cols-3">
@@ -500,7 +515,7 @@ function FaqItem({ q, a, open, onClick }) {
 function FAQ() {
   const [openIndex, setOpenIndex] = useState(0)
   return (
-    <section id="faq" className="relative overflow-hidden px-6 py-24 lg:px-10">
+    <section id="faq" className="relative scroll-mt-24 overflow-hidden px-6 py-24 lg:px-10">
       <div className="mx-auto max-w-4xl">
         <SectionHeading title="Common Questions" body="Quick answers about Oudaa" />
         <div className="space-y-4">

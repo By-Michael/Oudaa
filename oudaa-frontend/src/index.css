@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 @layer base {
   html, body, #root {
     margin: 0;
@@ -16,6 +22,7 @@
     /* Kimi-style compact type scale: ~80% of the previous base size
        (e.g. what used to render at 10 now renders at ~8). */
     font-size: 82%;
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-brand-50/40 text-ink-800 font-sans;

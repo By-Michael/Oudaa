@@ -235,4 +235,41 @@ describe('PATCH /auth/change-password', () => {
       .send({ currentPassword: 'a', newPassword: 'NewPassword1' });
     expect(res.status).toBe(401);
   });
+
+  it('keeps the current session working but signs out other sessions', async () => {
+    const { admin } = await createCommunityWithAdmin({ password: 'OldPassword1' });
+
+    // Two separate logins = two separate sessions/devices for the same user.
+    const sessionA = await request(app)
+      .post(`${BASE}/login`)
+      .send({ identifier: admin.email, password: 'OldPassword1' });
+    const sessionB = await request(app)
+      .post(`${BASE}/login`)
+      .send({ identifier: admin.email, password: 'OldPassword1' });
+
+    const cookieA = sessionA.headers['set-cookie'].find((c) => c.startsWith('oudaa_refresh_token='));
+    const cookieB = sessionB.headers['set-cookie'].find((c) => c.startsWith('oudaa_refresh_token='));
+
+    // Change the password from session A.
+    const changeRes = await request(app)
+      .patch(`${BASE}/change-password`)
+      .set('Authorization', `Bearer ${sessionA.body.data.accessToken}`)
+      .set('Cookie', cookieA)
+      .send({ currentPassword: 'OldPassword1', newPassword: 'NewPassword1' });
+    expect(changeRes.status).toBe(200);
+    // A fresh access token comes back so the initiating session never has
+    // to hit a revoked refresh token to keep working.
+    expect(changeRes.body.data.accessToken).toBeTruthy();
+
+    // Session A's *original* refresh token was rotated (used up) as part
+    // of the change, but the rotated cookie returned by change-password
+    // itself still works.
+    const newCookieA = changeRes.headers['set-cookie'].find((c) => c.startsWith('oudaa_refresh_token='));
+    const refreshA = await request(app).post(`${BASE}/refresh`).set('Cookie', newCookieA).send({});
+    expect(refreshA.status).toBe(200);
+
+    // Session B (a different device) must be signed out.
+    const refreshB = await request(app).post(`${BASE}/refresh`).set('Cookie', cookieB).send({});
+    expect(refreshB.status).toBe(401);
+  });
 });

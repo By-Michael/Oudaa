@@ -280,10 +280,14 @@ export default function ResidentReports() {
         monthLabel={monthLabel}
       />
 
-      <div className="grid xl:grid-cols-2 gap-5 mt-5">
+      <div className="grid xl:grid-cols-2 gap-5 mt-5 xl:items-start">
         <div className="card p-5">
           <h3 className="font-semibold text-ink-800 mb-4">Fund progress toward goal</h3>
-          <div className="space-y-4">
+          {/* Capped + scrollable so a long list of funds doesn't stretch this
+              card's height (and drag the chart card next to it, which sizes
+              itself to the fixed 280px chart) — the list scrolls internally
+              instead. Height roughly matches the chart card's content area. */}
+          <div className="space-y-4 max-h-[340px] overflow-y-auto pr-1 -mr-1">
             {fundProgress.map((f) => (
               <div key={f.name}>
                 <div className="flex items-center justify-between text-sm mb-1">

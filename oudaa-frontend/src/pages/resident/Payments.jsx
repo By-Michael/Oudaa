@@ -165,6 +165,8 @@ export default function ResidentPayments() {
     setReceiptUploadError('')
     setReceiptLink('')
     setReceiptReference('')
+    setOcrNote('')
+    setReceiptAmount(null)
   }
 
   async function handleReceiptUpload(e) {
@@ -172,6 +174,7 @@ export default function ResidentPayments() {
     if (!file) return
     setReceiptUploading(true)
     setReceiptUploadError('')
+    setOcrNote('')
     try {
       const result = await uploadSelfPaymentReceipt(file)
       setForm((f) => ({ ...f, receiptUrl: result.receiptUrl }))
@@ -184,8 +187,37 @@ export default function ResidentPayments() {
       setReceiptReference(result.extractedReference || '')
     } catch (err) {
       setReceiptUploadError(err?.response?.data?.message || err.message || 'Could not upload that receipt.')
-    } finally {
       setReceiptUploading(false)
+      if (receiptInputRef.current) receiptInputRef.current.value = ''
+      return
+    }
+    setReceiptUploading(false)
+
+    // Same file, second job: OCR it (works for the PDF or the screenshot —
+    // whichever this was) to also autofill "Paid by" here, instead of
+    // making the resident upload the same receipt again lower down just
+    // for that. Best-effort only — a failed/empty read here doesn't affect
+    // the upload above, which already succeeded.
+    setOcrLoading(true)
+    try {
+      const result = await parsePaymentScreenshot(file)
+      const updates = {}
+      if (result.name) updates.payerName = result.name
+      if (Object.keys(updates).length) {
+        setForm((f) => ({ ...f, ...updates }))
+        setUseMyName(false)
+        let note = "Name filled in from your receipt — please double-check before submitting."
+        if (result.amount != null && selectedFee && Math.abs(result.amount - Number(selectedFee.amount)) > 0.01) {
+          note += ` Heads up: the receipt shows ${result.amount}, but "${selectedFee.name}" is ${currency(selectedFee.amount)} — double-check you selected the right fee.`
+        }
+        setOcrNote(note)
+      }
+      setReceiptAmount(result.amount != null ? Number(result.amount) : null)
+    } catch {
+      // Silent: this is a bonus autofill on top of an upload that already
+      // succeeded, not a required step — nothing to surface as an error.
+    } finally {
+      setOcrLoading(false)
       if (receiptInputRef.current) receiptInputRef.current.value = ''
     }
   }
@@ -514,8 +546,9 @@ export default function ResidentPayments() {
                 <label className="label !mb-1.5">CBE e-receipt</label>
                 <p className="text-xs text-ink-400 mb-2.5">
                   Upload the screenshot or PDF receipt from your transfer, or paste a link to it — we'll
-                  read the QR code and verify it automatically. If we can't read it, a committee admin
-                  will confirm it against this record instead.
+                  read the QR code to verify it automatically and fill in the name above from the
+                  receipt. If we can't read the QR code, a committee admin will confirm it against this
+                  record instead.
                 </p>
                 <div className="flex gap-1.5 mb-2.5">
                   <button
@@ -539,18 +572,21 @@ export default function ResidentPayments() {
                     <button
                       type="button"
                       onClick={() => receiptInputRef.current?.click()}
-                      disabled={receiptUploading}
+                      disabled={receiptUploading || ocrLoading}
                       className="w-full flex items-center justify-center gap-2 text-sm font-medium text-ink-600 hover:text-brand-700 disabled:opacity-50"
                     >
-                      {receiptUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : (form.receiptUrl ? <FileCheck2 className="h-4 w-4 text-emerald-600" /> : <Upload className="h-4 w-4" />)}
-                      {receiptUploading ? 'Uploading…' : form.receiptUrl ? `Uploaded: ${receiptFileName}` : 'Choose a screenshot or PDF'}
+                      {receiptUploading || ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (form.receiptUrl ? <FileCheck2 className="h-4 w-4 text-emerald-600" /> : <Upload className="h-4 w-4" />)}
+                      {receiptUploading ? 'Uploading…' : ocrLoading ? 'Reading receipt…' : form.receiptUrl ? `Uploaded: ${receiptFileName}` : 'Choose a screenshot or PDF'}
                     </button>
-                    {form.receiptUrl && !receiptUploading && (
+                    {form.receiptUrl && !receiptUploading && !ocrLoading && (
                       <p className={`mt-1.5 text-xs ${receiptReference ? 'text-emerald-600' : 'text-amber-600'}`}>
                         {receiptReference
                           ? 'QR code read successfully — this can be verified automatically.'
                           : "Couldn't read a QR code off this file — it'll be queued for manual review."}
                       </p>
+                    )}
+                    {ocrNote && !receiptUploading && !ocrLoading && (
+                      <p className="mt-1.5 text-xs text-ink-500">{ocrNote}</p>
                     )}
                   </>
                 ) : (
@@ -612,19 +648,21 @@ export default function ResidentPayments() {
               />
             </div>
 
-            <div className="rounded-xl border border-dashed border-ink-200 p-3.5">
-              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleScreenshot} />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={ocrLoading}
-                className="w-full flex items-center justify-center gap-2 text-sm font-medium text-ink-600 hover:text-brand-700 disabled:opacity-50"
-              >
-                {ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                {ocrLoading ? 'Reading screenshot…' : 'Upload a screenshot to autofill name & transaction ID'}
-              </button>
-              {ocrNote && <p className="mt-2 text-xs text-center text-ink-500">{ocrNote}</p>}
-            </div>
+            {!isCbe && (
+              <div className="rounded-xl border border-dashed border-ink-200 p-3.5">
+                <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleScreenshot} />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={ocrLoading}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-medium text-ink-600 hover:text-brand-700 disabled:opacity-50"
+                >
+                  {ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  {ocrLoading ? 'Reading screenshot…' : 'Upload a screenshot to autofill name & transaction ID'}
+                </button>
+                {ocrNote && <p className="mt-2 text-xs text-center text-ink-500">{ocrNote}</p>}
+              </div>
+            )}
 
             {error && (
               <div className="rounded-xl bg-rose-50 border border-rose-100 px-3.5 py-2.5 text-sm text-rose-600">

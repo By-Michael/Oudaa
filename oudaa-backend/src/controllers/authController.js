@@ -269,8 +269,16 @@ const me = catchAsync(async (req, res) => {
 /**
  * Self-service password change. Requires the caller's current password so
  * a hijacked session alone can't lock the real owner out, and revokes every
- * outstanding refresh token so other logged-in sessions are forced to
- * re-authenticate with the new password.
+ * *other* outstanding refresh token so other logged-in sessions/devices are
+ * forced to re-authenticate with the new password.
+ *
+ * The session making this request is deliberately spared: the person is
+ * sitting right here having just proven they know both the old password
+ * (this request) and control of the session (their access token), so there's
+ * no security reason to kick them out too. Their current refresh token is
+ * rotated (not just left as-is) so it's freshly issued after the password
+ * change, and the new access token is returned in the response so the
+ * frontend can swap it in without a round trip through /auth/refresh.
  */
 const changePassword = catchAsync(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
@@ -281,15 +289,38 @@ const changePassword = catchAsync(async (req, res) => {
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) throw new AppError('Current password is incorrect', 401);
 
+  // Identify (but don't yet touch) the refresh token backing *this*
+  // session, so it can be excluded from the mass-revoke below and rotated
+  // on its own right after.
+  const currentRawToken = req.cookies?.[REFRESH_COOKIE_NAME];
+  const currentTokenHash = currentRawToken ? hashToken(currentRawToken) : null;
+
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.$transaction([
     prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
-    prisma.refreshToken.updateMany({ where: { userId: user.id, revoked: false }, data: { revoked: true } }),
+    prisma.refreshToken.updateMany({
+      where: {
+        userId: user.id,
+        revoked: false,
+        ...(currentTokenHash ? { tokenHash: { not: currentTokenHash } } : {}),
+      },
+      data: { revoked: true },
+    }),
   ]);
+
+  // Rotate the surviving session's own token pair (same pattern as
+  // /auth/refresh) so the person keeps working without interruption, on a
+  // token pair generated after — not before — the password change.
+  if (currentTokenHash) {
+    await prisma.refreshToken
+      .updateMany({ where: { tokenHash: currentTokenHash }, data: { revoked: true } })
+      .catch(() => {});
+  }
+  const accessToken = await issueTokenPair(res, user);
 
   sendPasswordChangedEmail({ to: user.email, fullName: user.fullName }).catch(() => {});
 
-  res.json({ success: true, message: 'Password updated' });
+  res.json({ success: true, message: 'Password updated', data: { accessToken } });
 });
 
 /**

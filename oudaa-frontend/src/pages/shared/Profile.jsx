@@ -337,7 +337,17 @@ function SecurityTab() {
     if (pwForm.next !== pwForm.confirm) return setPwError('New password and confirmation don\u2019t match.')
     setPwLoading(true)
     try {
-      await api.patch(endpoints.changePassword(), { currentPassword: pwForm.current, newPassword: pwForm.next })
+      const { data } = await api.patch(endpoints.changePassword(), {
+        currentPassword: pwForm.current,
+        newPassword: pwForm.next,
+      })
+      // The backend rotates this session's own token pair as part of the
+      // password change (see authController#changePassword) — it only
+      // revokes *other* sessions. Swap the new access token in right away
+      // so nothing in this tab ever tries the old, now-revoked one and
+      // gets bounced to the login screen.
+      const newToken = data?.data?.accessToken
+      if (newToken) localStorage.setItem('oudaa_token', newToken)
       setPwForm({ current: '', next: '', confirm: '' })
       setSuccessOpen(true)
     } catch (err) {
@@ -355,7 +365,8 @@ function SecurityTab() {
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />
           </div>
           <p className="text-sm text-ink-500">
-            Your password was changed successfully. You\u2019ll need to use it the next time you sign in.
+            Your password was changed successfully. You\u2019re still signed in here \u2014 any other devices or
+            browsers you were logged in on have been signed out and will need the new password.
           </p>
           <button type="button" onClick={() => setSuccessOpen(false)} className="btn-primary w-full mt-2">Done</button>
         </div>
@@ -389,6 +400,8 @@ function SecurityTab() {
         <p>
           Password and phone-number changes always require a one-time code sent to your registered email first — even
           if someone gets hold of your session, they can’t change either without also having access to your inbox.
+          Changing your password keeps you signed in on this device, but signs out every other device or browser
+          you're logged in on.
         </p>
       </div>
     </div>

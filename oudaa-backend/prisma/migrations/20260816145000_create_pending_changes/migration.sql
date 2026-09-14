@@ -5,7 +5,9 @@
 -- the base tables here, in their pre-those-migrations shape, so the
 -- history replays correctly on a fresh/production database.
 
-CREATE TYPE "PendingChangeStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED');
+DO $$ BEGIN
+    CREATE TYPE "PendingChangeStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS "pending_changes" (
     "id"           TEXT NOT NULL,

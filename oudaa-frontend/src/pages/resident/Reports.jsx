@@ -254,9 +254,9 @@ export default function ResidentReports() {
       />
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={Wallet} label="Total paid" value={currency(myTotalPaid)} sub={`${myVerified.length} verified payments`} accent="brand" />
-        <StatCard icon={TrendingUp} label="Compliance rate" value={`${myComplianceRate}%`} sub={`${unpaidFees.length} fee(s) outstanding`} accent="green" />
-        <StatCard icon={PiggyBank} label="Pending verification" value={myPending.length} sub={currency(myPending.reduce((s, p) => s + p.amount, 0))} accent="amber" />
+        <StatCard icon={Wallet} label="Total paid" value={currency(myTotalPaid)} sub={`${myVerified.length} verified payments`} accent="brand" loading={!dataFullyLoaded} />
+        <StatCard icon={TrendingUp} label="Compliance rate" value={`${myComplianceRate}%`} sub={`${unpaidFees.length} fee(s) outstanding`} accent="green" loading={!dataFullyLoaded} />
+        <StatCard icon={PiggyBank} label="Pending verification" value={myPending.length} sub={currency(myPending.reduce((s, p) => s + p.amount, 0))} accent="amber" loading={!dataFullyLoaded} />
         <StatCard icon={Target} label="Community spend" value={currency(totalExpenses)} sub={`${projects.length} active project(s)`} accent="rose" loading={!dataFullyLoaded} />
       </div>
 

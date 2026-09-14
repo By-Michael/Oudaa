@@ -8,7 +8,7 @@ import { portalBase } from '../../lib/paths'
 export default function ResidentDashboard() {
   const { user } = useAuth()
   const base = portalBase(user)
-  const { payments, fees, funds, residents, projects } = useData()
+  const { payments, fees, funds, residents, projects, dataFullyLoaded } = useData()
 
   const resident = residents.find((r) => r.id === user?.residentId) || residents[0]
   const myPayments = payments.filter((p) => p.residentId === resident?.id)
@@ -28,8 +28,8 @@ export default function ResidentDashboard() {
       <PageHeader title={`Hi, ${user?.name?.split(' ')[0]}`} subtitle={`Unit ${resident?.unit} · ${user?.community}`} />
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={Wallet} label="You've contributed" value={currency(totalPaid)} sub={`${myPayments.filter(p=>p.status==='paid').length} payments`} accent="brand" to={`${base}/payments`} />
-        <StatCard icon={Clock} label="Pending dues" value={pending.length} sub={pending.length ? currency(pending.reduce((s,p)=>s+p.amount,0)) + ' outstanding — awaiting or past due' : 'All clear'} accent="amber" to={`${base}/payments`} />
+        <StatCard icon={Wallet} label="You've contributed" value={currency(totalPaid)} sub={`${myPayments.filter(p=>p.status==='paid').length} payments`} accent="brand" to={`${base}/payments`} loading={!dataFullyLoaded} />
+        <StatCard icon={Clock} label="Pending dues" value={pending.length} sub={pending.length ? currency(pending.reduce((s,p)=>s+p.amount,0)) + ' outstanding — awaiting or past due' : 'All clear'} accent="amber" to={`${base}/payments`} loading={!dataFullyLoaded} />
         <StatCard icon={Landmark} label="Total community funds" value={currencyBalance(totalFunds, 'short')} sub="Managed transparently" accent="green" to={`${base}/funds`} />
         <StatCard icon={FolderKanban} label="Active projects" value={activeProjects} sub="Funded by your community" accent="rose" to={`${base}/projects`} />
       </div>

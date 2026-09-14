@@ -558,7 +558,9 @@ export default function Payments() {
         subtitle={
           filters.nonPayersOnly
             ? `${nonPayers.length} residents haven't paid "${selectedFee?.name || '—'}" (${periodLabel()})`
-            : `${filtered.length} records · ${currency(total)} in view${needsReviewCount > 0 ? ` · ${needsReviewCount} awaiting review` : ''}`
+            : dataFullyLoaded
+              ? `${filtered.length} records · ${currency(total)} in view${needsReviewCount > 0 ? ` · ${needsReviewCount} awaiting review` : ''}`
+              : `${filtered.length} record${filtered.length === 1 ? '' : 's'} so far · calculating total…`
         }
         action={<button onClick={() => { setForm(empty); setModal(true) }} className="btn-primary"><Plus className="h-4 w-4" /> Record payment</button>}
       />

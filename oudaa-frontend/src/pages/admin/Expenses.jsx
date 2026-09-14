@@ -20,7 +20,7 @@ const empty = { targetType: 'project', projectId: '', fundId: '', reason: '', de
 const EXPENSE_PAYMENT_OPTIONS = ['Telebirr', 'Commercial Bank of Ethiopia']
 
 export default function Expenses() {
-  const { expenses, projects, funds, receipts, addExpense, reverseExpense, addReceipt, updateReceipt } = useData()
+  const { expenses, projects, funds, receipts, addExpense, reverseExpense, addReceipt, updateReceipt, dataFullyLoaded } = useData()
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(empty)
   const [submitting, setSubmitting] = useState(false)
@@ -143,7 +143,11 @@ export default function Expenses() {
     <div>
       <PageHeader
         title="Expenses"
-        subtitle={`${filteredExpenses.length} of ${visibleExpenses.length} records · ${currency(total)} net spend · tap a row for details`}
+        subtitle={
+          dataFullyLoaded
+            ? `${filteredExpenses.length} of ${visibleExpenses.length} records · ${currency(total)} net spend · tap a row for details`
+            : `${filteredExpenses.length} of ${visibleExpenses.length} records so far · calculating net spend…`
+        }
         action={<button onClick={() => setModal(true)} className="btn-primary"><Plus className="h-4 w-4" /> Log expense</button>}
       />
 

@@ -118,7 +118,9 @@ export default function ResidentPayments() {
   // CBE-only: the resident either uploads their e-receipt (screenshot/PDF)
   // or pastes a link to it — either way we end up with a receiptUrl to send
   // with self-verify. "mode" toggles which of the two inputs is showing.
-  const [receiptMode, setReceiptMode] = useState('upload') // 'upload' | 'link'
+  // Link and upload are two ways to fill the same receiptUrl slot, always
+  // shown together (no upload/link tab toggle) — receiptFileName vs.
+  // receiptLink tells the UI which of the two is currently populated.
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptFileName, setReceiptFileName] = useState('')
   const [receiptUploadError, setReceiptUploadError] = useState('')
@@ -134,6 +136,10 @@ export default function ResidentPayments() {
   const selectedFee = fees.find((f) => f.id === form.feeId)
   const selectedMethod = activeMethods.find((m) => m.id === form.paymentMethodId)
   const isCbe = selectedMethod?.provider === 'CBE'
+  // Both the receipt-link field and the upload button require a sender
+  // name first — the backend attaches whichever receipt to this
+  // payerName, so it can't be left blank when a receipt is being attached.
+  const payerNameReady = form.payerName.trim().length > 0
   const isTelebirr = selectedMethod?.provider === 'TELEBIRR'
   // Only CBE and Telebirr are supported — CBE is receipt-only (no
   // transaction ID/suffix needed) and Telebirr needs the sender's phone.
@@ -147,7 +153,6 @@ export default function ResidentPayments() {
     setCanRetry(false)
     setOcrNote('')
     setReceiptAmount(null)
-    setReceiptMode('upload')
     setReceiptFileName('')
     setReceiptUploadError('')
     setReceiptLink('')
@@ -160,7 +165,6 @@ export default function ResidentPayments() {
     // receipt is meaningless for Telebirr and vice versa) so a leftover
     // value can't sneak into a submission it doesn't apply to.
     setForm((f) => ({ ...f, paymentMethodId: methodId, txnId: '', phoneNumber: '', receiptUrl: undefined }))
-    setReceiptMode('upload')
     setReceiptFileName('')
     setReceiptUploadError('')
     setReceiptLink('')
@@ -172,6 +176,17 @@ export default function ResidentPayments() {
   async function handleReceiptUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    // Belt-and-braces: the button is disabled until a name is entered, but
+    // guard here too in case the input is ever reached another way.
+    if (!form.payerName.trim()) {
+      setReceiptUploadError('Enter the sender\u2019s name above first.')
+      if (receiptInputRef.current) receiptInputRef.current.value = ''
+      return
+    }
+    // A link and an uploaded file fill the same slot — starting an upload
+    // clears any previously pasted link so there's no ambiguity about
+    // which one the submit will use.
+    setReceiptLink('')
     setReceiptUploading(true)
     setReceiptUploadError('')
     setOcrNote('')
@@ -545,69 +560,73 @@ export default function ResidentPayments() {
               <div className="rounded-xl border border-dashed border-brand-200 bg-brand-50/40 p-3.5">
                 <label className="label !mb-1.5">CBE e-receipt</label>
                 <p className="text-xs text-ink-400 mb-2.5">
-                  Upload the screenshot or PDF receipt from your transfer, or paste a link to it — we'll
-                  read the QR code to verify it automatically and fill in the name above from the
-                  receipt. If we can't read the QR code, a committee admin will confirm it against this
-                  record instead.
+                  Paste a link to your e-receipt, or upload the screenshot or PDF itself — we'll read the
+                  QR code to verify it automatically and fill in the name above from the receipt. If we
+                  can't read the QR code, a committee admin will confirm it against this record instead.
                 </p>
-                <div className="flex gap-1.5 mb-2.5">
-                  <button
-                    type="button"
-                    onClick={() => { setReceiptMode('upload'); setReceiptLink(''); setReceiptReference(''); setForm((f) => ({ ...f, receiptUrl: undefined })) }}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${receiptMode === 'upload' ? 'bg-brand-600 text-white' : 'bg-white text-ink-500 ring-1 ring-ink-200'}`}
-                  >
-                    Upload file
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setReceiptMode('link'); setReceiptFileName(''); setReceiptReference(''); setForm((f) => ({ ...f, receiptUrl: undefined })) }}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${receiptMode === 'link' ? 'bg-brand-600 text-white' : 'bg-white text-ink-500 ring-1 ring-ink-200'}`}
-                  >
-                    Paste a link
-                  </button>
+
+                {!payerNameReady && (
+                  <p className="mb-2.5 text-xs text-amber-600">
+                    Enter the sender's name above first — that's required before you can attach a receipt.
+                  </p>
+                )}
+
+                <div className="relative mb-2">
+                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
+                  <input
+                    className="input pl-9"
+                    placeholder="https://mbreciept.cbe.com.et/…"
+                    value={receiptLink}
+                    disabled={!payerNameReady || receiptUploading || ocrLoading}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setReceiptLink(value)
+                      const trimmed = value.trim()
+                      setForm((f) => ({ ...f, receiptUrl: trimmed || undefined }))
+                      // The pasted link IS the reference — the backend
+                      // re-validates its shape, so no need to duplicate
+                      // that check here just to enable this.
+                      setReceiptReference(trimmed)
+                      // A link and an uploaded file are two ways to fill the
+                      // same slot, not two things at once — typing a link
+                      // clears any previously uploaded file so there's no
+                      // ambiguity about which one the submit will use.
+                      if (receiptFileName) setReceiptFileName('')
+                    }}
+                  />
                 </div>
-                {receiptMode === 'upload' ? (
-                  <>
-                    <input ref={receiptInputRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={handleReceiptUpload} />
-                    <button
-                      type="button"
-                      onClick={() => receiptInputRef.current?.click()}
-                      disabled={receiptUploading || ocrLoading}
-                      className="w-full flex items-center justify-center gap-2 text-sm font-medium text-ink-600 hover:text-brand-700 disabled:opacity-50"
-                    >
-                      {receiptUploading || ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (form.receiptUrl ? <FileCheck2 className="h-4 w-4 text-emerald-600" /> : <Upload className="h-4 w-4" />)}
-                      {receiptUploading ? 'Uploading…' : ocrLoading ? 'Reading receipt…' : form.receiptUrl ? `Uploaded: ${receiptFileName}` : 'Choose a screenshot or PDF'}
-                    </button>
-                    {form.receiptUrl && !receiptUploading && !ocrLoading && (
-                      <p className={`mt-1.5 text-xs ${receiptReference ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {receiptReference
-                          ? 'QR code read successfully — this can be verified automatically.'
-                          : "Couldn't read a QR code off this file — it'll be queued for manual review."}
-                      </p>
-                    )}
-                    {ocrNote && !receiptUploading && !ocrLoading && (
-                      <p className="mt-1.5 text-xs text-ink-500">{ocrNote}</p>
-                    )}
-                  </>
-                ) : (
-                  <div className="relative">
-                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
-                    <input
-                      className="input pl-9"
-                      placeholder="https://mbreciept.cbe.com.et/…"
-                      value={receiptLink}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        setReceiptLink(value)
-                        const trimmed = value.trim()
-                        setForm((f) => ({ ...f, receiptUrl: trimmed || undefined }))
-                        // The pasted link IS the reference — the backend
-                        // re-validates its shape, so no need to duplicate
-                        // that check here just to enable this.
-                        setReceiptReference(trimmed)
-                      }}
-                    />
-                  </div>
+
+                <div className="flex items-center gap-2 mb-2 text-[11px] font-medium uppercase tracking-wide text-ink-400">
+                  <div className="h-px flex-1 bg-ink-200/60" /> or <div className="h-px flex-1 bg-ink-200/60" />
+                </div>
+
+                <input ref={receiptInputRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={handleReceiptUpload} />
+                <button
+                  type="button"
+                  onClick={() => receiptInputRef.current?.click()}
+                  disabled={!payerNameReady || receiptUploading || ocrLoading || isAdminPreview}
+                  title={isAdminPreview ? "You're previewing the resident view as an admin — receipt upload is only available to residents." : undefined}
+                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                    payerNameReady ? 'bg-brand-gradient text-white' : 'bg-ink-100 text-ink-400'
+                  }`}
+                >
+                  {receiptUploading || ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (receiptFileName ? <FileCheck2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />)}
+                  {receiptUploading ? 'Uploading…' : ocrLoading ? 'Reading receipt…' : receiptFileName ? `Uploaded: ${receiptFileName}` : 'Upload screenshot or PDF'}
+                </button>
+                {isAdminPreview && (
+                  <p className="mt-1.5 text-xs text-center text-ink-400">
+                    Receipt upload is resident-only — you're previewing this page as an admin.
+                  </p>
+                )}
+                {receiptFileName && form.receiptUrl && !receiptUploading && !ocrLoading && (
+                  <p className={`mt-1.5 text-xs ${receiptReference ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {receiptReference
+                      ? 'QR code read successfully — this can be verified automatically.'
+                      : "Couldn't read a QR code off this file — it'll be queued for manual review."}
+                  </p>
+                )}
+                {ocrNote && !receiptUploading && !ocrLoading && (
+                  <p className="mt-1.5 text-xs text-ink-500">{ocrNote}</p>
                 )}
                 {receiptUploadError && <p className="mt-2 text-xs text-center text-rose-600">{receiptUploadError}</p>}
               </div>

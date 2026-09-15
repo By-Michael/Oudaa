@@ -10,7 +10,7 @@ const {
   verifyRefreshToken,
   hashToken,
 } = require('../utils/tokens');
-const { sendPasswordResetEmail, sendPasswordChangedEmail, sendCommunityWelcomeEmail } = require('../utils/email');
+const { sendPasswordResetEmail, sendPasswordChangedEmail, sendCommunityWelcomeEmail, sendCommitteeInviteEmail } = require('../utils/email');
 const { generateUniqueSlug, RESERVED_SLUGS } = require('../utils/slugify');
 
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
@@ -436,6 +436,67 @@ const resetPassword = catchAsync(async (req, res) => {
   res.json({ success: true, message: 'Password has been reset. Please sign in with your new password.' });
 });
 
+/**
+ * Invite a new committee member (ADMIN role) to the caller's community.
+ * Creates the user account with a random unusable password hash, then
+ * sends them a password-reset link so they set their own password.
+ * Authenticated — only existing admins of the same community can call this.
+ */
+const inviteCommitteeMember = catchAsync(async (req, res) => {
+  const { fullName, email, phone } = req.body;
+
+  if (!fullName?.trim()) throw new AppError('Full name is required', 400);
+  if (!email?.trim()) throw new AppError('Email is required', 400);
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) throw new AppError('Email already in use', 409);
+
+  // Create the account with an unusable random password — the invite email
+  // contains a reset link, so they set their own password on first access.
+  const tempHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
+
+  const newUser = await prisma.user.create({
+    data: {
+      communityId: req.communityId,
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      passwordHash: tempHash,
+      role: 'ADMIN',
+      ...(phone?.trim() ? {} : {}), // phone lives on Resident; stored in invite email only
+    },
+  });
+
+  // Issue a password-reset token so the invitee can set their own password.
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashToken(rawToken);
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: newUser.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 h — more generous for invites
+    },
+  });
+
+  const community = await prisma.community.findUnique({ where: { id: req.communityId } });
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/${community.slug}/reset-password?token=${rawToken}`;
+
+  // Fire-and-forget — same pattern as forgotPassword
+  sendCommitteeInviteEmail({
+    to: newUser.email,
+    fullName: newUser.fullName,
+    invitedBy: req.user.fullName,
+    communityName: community.name,
+    resetUrl,
+    expiresInMinutes: 72 * 60,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: `Invite sent to ${newUser.email}.`,
+    data: { id: newUser.id, fullName: newUser.fullName, email: newUser.email },
+  });
+});
+
 module.exports = {
   registerCommunity,
   login,
@@ -445,4 +506,5 @@ module.exports = {
   changePassword,
   forgotPassword,
   resetPassword,
+  inviteCommitteeMember,
 };

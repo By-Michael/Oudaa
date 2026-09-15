@@ -100,6 +100,7 @@ export const endpoints = {
   myOtpRequest: () => '/users/me/otp/request',
   myOtpVerifyPhone: () => '/users/me/otp/verify-phone',
 
+  inviteCommitteeMember: () => '/auth/invite-committee-member',
   residents: () => '/residents',
   residentsBulkImport: () => '/residents/bulk-import',
   resident: (id) => `/residents/${id}`,

@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const authenticate = require('../middleware/authenticate');
+const authorize = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const {
   registerCommunitySchema,
@@ -58,6 +59,24 @@ router.post(
   authLimiter,
   validate(resetPasswordSchema),
   authController.resetPassword
+);
+
+// Invite a new committee member — authenticated, admin-only.
+// Uses a generous per-IP limit (separate from authLimiter) since an admin
+// setting up a new community might invite several members in quick succession.
+const inviteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 20 : 5000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many invite requests, please try again later' },
+});
+router.post(
+  '/invite-committee-member',
+  authenticate,
+  authorize('ADMIN'),
+  inviteLimiter,
+  authController.inviteCommitteeMember
 );
 
 module.exports = router;

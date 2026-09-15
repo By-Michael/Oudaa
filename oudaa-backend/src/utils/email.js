@@ -327,6 +327,36 @@ async function sendProfileOtpEmail({ to, fullName, otp, purpose, expiresInMinute
   return sendEmail({ to, subject, text, html });
 }
 
+/**
+ * Sent to a newly invited committee member. Includes a password-reset link
+ * so they set their own password rather than receiving a temp one in email.
+ */
+async function sendCommitteeInviteEmail({ to, fullName, invitedBy, communityName, resetUrl, expiresInMinutes }) {
+  const subject = `You've been added to ${communityName}'s committee on Oudaa`;
+  const text = [
+    `Hello ${fullName},`,
+    '',
+    `${invitedBy} has added you as a committee member for ${communityName} on Oudaa.`,
+    '',
+    'To set your password and activate your account, follow this link (valid for ' + expiresInMinutes + ' minutes):',
+    '',
+    resetUrl,
+    '',
+    'Once you\'ve set your password you\'ll be able to sign in and manage the community alongside the rest of the committee.',
+    '',
+    '— Oudaa',
+  ].join('\n');
+  const html = `
+    <p>Hello ${fullName},</p>
+    <p><strong>${invitedBy}</strong> has added you as a committee member for <strong>${communityName}</strong> on Oudaa.</p>
+    <p>To set your password and activate your account, click the link below (valid for ${expiresInMinutes} minutes):</p>
+    <p><a href="${resetUrl}">${resetUrl}</a></p>
+    <p>Once you've set your password you'll be able to sign in and manage the community alongside the rest of the committee.</p>
+    <p>— Oudaa</p>
+  `;
+  return sendEmail({ to, subject, text, html });
+}
+
 module.exports = {
   sendEmail,
   sendResidentDeactivatedEmail,
@@ -336,6 +366,7 @@ module.exports = {
   sendPasswordChangedEmail,
   sendNotificationEmail,
   sendProfileOtpEmail,
+  sendCommitteeInviteEmail,
   isStubActive,
   verifyEmailTransport,
 };

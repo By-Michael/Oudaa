@@ -13,6 +13,7 @@ import {
   Sparkles,
   Trash2,
   User,
+  Users,
   Wallet,
 } from 'lucide-react'
 import api, { endpoints } from '../lib/api'
@@ -26,7 +27,8 @@ const STEPS = [
   { id: 1, label: 'Account', icon: User },
   { id: 2, label: 'Community', icon: Building2 },
   { id: 3, label: 'Fees', icon: Wallet },
-  { id: 4, label: 'Review & launch', icon: Sparkles },
+  { id: 4, label: 'Committee', icon: Users },
+  { id: 5, label: 'Review', icon: Sparkles },
 ]
 
 const FREQUENCIES = [
@@ -63,6 +65,10 @@ function makeFee(preset) {
   }
 }
 
+function makeCommitteeMember() {
+  return { id: Math.random().toString(36).slice(2), fullName: '', email: '', phone: '' }
+}
+
 const INITIAL_DATA = {
   fullName: '',
   email: '',
@@ -76,6 +82,7 @@ const INITIAL_DATA = {
   address: '',
   contactInfo: '',
   fees: [makeFee({ name: 'Monthly maintenance', amount: '500', frequency: 'MONTHLY' })],
+  committeeMembers: [],
 }
 
 /* ------------------------------------------------------------------ */
@@ -405,7 +412,86 @@ function StepFees({ data, update, errors }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Step 4 — Review & launch                                             */
+/* Step 4 — Committee members                                          */
+/* ------------------------------------------------------------------ */
+
+function StepCommittee({ data, update }) {
+  function addMember() {
+    update({ committeeMembers: [...data.committeeMembers, makeCommitteeMember()] })
+  }
+  function removeMember(id) {
+    update({ committeeMembers: data.committeeMembers.filter((m) => m.id !== id) })
+  }
+  function updateMember(id, patch) {
+    update({ committeeMembers: data.committeeMembers.map((m) => (m.id === id ? { ...m, ...patch } : m)) })
+  }
+
+  return (
+    <div>
+      <SectionHeading
+        eyebrow="Step 4 of 5"
+        title="Add committee members"
+        body="Invite the other people who'll manage this community. They'll get an email with a link to set their own password. You can skip this and add them from the dashboard later."
+      />
+      <div className="space-y-4">
+        {data.committeeMembers.map((member, i) => (
+          <div key={member.id} className="rounded-xl border border-ink-200 bg-ink-50 p-4 space-y-3 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-ink-700 dark:text-ink-200">Member {i + 1}</span>
+              <button type="button" onClick={() => removeMember(member.id)} className="text-ink-400 hover:text-red-500 transition-colors">
+                <Trash2 size={15} />
+              </button>
+            </div>
+            <div>
+              <label className="label">Full name<RequiredMark /></label>
+              <input
+                className="input"
+                placeholder="Abebe Kebede"
+                value={member.fullName}
+                onChange={(e) => updateMember(member.id, { fullName: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="label">Email address<RequiredMark /></label>
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="member@community.org"
+                  value={member.email}
+                  onChange={(e) => updateMember(member.id, { email: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Phone number</label>
+                <input
+                  type="tel"
+                  className="input"
+                  placeholder="+251 9xx xxx xxx"
+                  value={member.phone}
+                  onChange={(e) => updateMember(member.id, { phone: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button type="button" onClick={addMember} className="btn-secondary gap-1.5 text-sm w-full">
+          <Plus size={14} /> Add committee member
+        </button>
+
+        {data.committeeMembers.length === 0 && (
+          <p className="text-center text-sm text-ink-400 dark:text-ink-500 py-2">
+            No members added yet — you can always invite them from the dashboard.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Step 5 — Review & launch                                             */
 /* ------------------------------------------------------------------ */
 
 function ReviewRow({ label, value }) {
@@ -421,7 +507,7 @@ function ReviewRow({ label, value }) {
 function StepReview({ data, onEdit, submitError }) {
   return (
     <div>
-      <SectionHeading eyebrow="Step 4 of 4" title="Review & launch" body="Take a last look — you can jump back to any step to fix something." />
+      <SectionHeading eyebrow="Step 5 of 5" title="Review & launch" body="Take a last look — you can jump back to any step to fix something." />
       <div className="space-y-5">
         <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#2e2e2e] dark:bg-[#1e1e1e]">
           <div className="mb-3 flex items-center justify-between">
@@ -458,9 +544,27 @@ function StepReview({ data, onEdit, submitError }) {
           </div>
         </div>
 
+        <div className="rounded-xl border border-ink-200 bg-white p-5 dark:border-[#2e2e2e] dark:bg-[#1e1e1e]">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-white"><Users size={15} className="text-brand-500" /> Committee members ({data.committeeMembers.length})</h3>
+            <button type="button" onClick={() => onEdit(4)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button>
+          </div>
+          {data.committeeMembers.length === 0 ? (
+            <p className="text-sm text-ink-400">None added — you can invite members from the dashboard.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.committeeMembers.map((m) => (
+                <div key={m.id} className="flex items-center justify-between text-sm">
+                  <span className="text-ink-800 dark:text-ink-100">{m.fullName || 'Unnamed'}</span>
+                  <span className="text-ink-400">{m.email}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="rounded-xl border border-dashed border-brand-300/60 bg-brand-50/60 p-4 text-xs leading-relaxed text-ink-500 dark:border-brand-500/30 dark:bg-brand-500/5 dark:text-ink-400">
-          Bank/Telebirr payment accounts, residents, and additional committee members can all be added
-          later from the dashboard — nothing here blocks you from launching today.
+          Bank/Telebirr payment accounts and residents can be added from the dashboard after launch.
         </div>
 
         {submitError && (
@@ -525,6 +629,18 @@ function validateStep(step, data) {
     const hasValidFee = data.fees.some((f) => f.name.trim() && Number(f.amount) > 0)
     if (!hasValidFee) errors.fees = 'Add at least one fee with a name and amount.'
   }
+  if (step === 4) {
+    data.committeeMembers.forEach((m, i) => {
+      if (!m.fullName.trim()) errors[`member_${i}_name`] = 'Name required'
+      if (!/^\S+@\S+\.\S+$/.test(m.email)) errors[`member_${i}_email`] = 'Valid email required'
+    })
+    // Check for duplicate emails among invitees and against the admin's own email
+    const emails = data.committeeMembers.map((m) => m.email.trim().toLowerCase())
+    emails.forEach((e, i) => {
+      if (e && e === data.email.trim().toLowerCase()) errors[`member_${i}_email`] = 'Same as your admin email'
+      if (e && emails.indexOf(e) !== i) errors[`member_${i}_email`] = 'Duplicate email'
+    })
+  }
   return errors
 }
 
@@ -549,7 +665,7 @@ export default function Signup() {
 
   function goNext() {
     if (!canAdvance) return
-    if (step < 4) setStep(step + 1)
+    if (step < 5) setStep(step + 1)
     else handleLaunch()
   }
   function goBack() {
@@ -605,6 +721,20 @@ export default function Signup() {
         )
       }
 
+      // Invite each committee member — best-effort, same as fees above.
+      // A failed invite doesn't undo the community creation; the admin can
+      // retry from the dashboard.
+      const validMembers = data.committeeMembers.filter((m) => m.fullName.trim() && m.email.trim())
+      await Promise.allSettled(
+        validMembers.map((m) =>
+          api.post(endpoints.inviteCommitteeMember(), {
+            fullName: m.fullName.trim(),
+            email: m.email.trim(),
+            phone: m.phone.trim() || undefined,
+          })
+        )
+      )
+
       setLaunchedSlug(community.slug)
     } catch (e) {
       const msg = e?.response?.data?.message || e.message || 'Something went wrong creating your community.'
@@ -633,7 +763,8 @@ export default function Signup() {
               {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
               {step === 2 && <StepCommunity data={data} update={update} errors={errors} />}
               {step === 3 && <StepFees data={data} update={update} errors={errors} />}
-              {step === 4 && <StepReview data={data} onEdit={setStep} submitError={submitError} />}
+              {step === 4 && <StepCommittee data={data} update={update} />}
+              {step === 5 && <StepReview data={data} onEdit={setStep} submitError={submitError} />}
 
               <div className="mt-8 flex items-center justify-between border-t border-ink-200 pt-6 dark:border-[#2e2e2e]">
                 <button
@@ -645,8 +776,8 @@ export default function Signup() {
                   <ArrowLeft size={15} /> Back
                 </button>
                 <button type="button" onClick={goNext} disabled={!canAdvance || submitting} className="btn-primary gap-1.5 px-6">
-                  {step === 4 ? (submitting ? 'Creating your community…' : 'Create my community') : 'Continue'}
-                  {step < 4 && <ArrowRight size={15} />}
+                  {step === 5 ? (submitting ? 'Creating your community…' : 'Create my community') : 'Continue'}
+                  {step < 5 && <ArrowRight size={15} />}
                 </button>
               </div>
             </div>

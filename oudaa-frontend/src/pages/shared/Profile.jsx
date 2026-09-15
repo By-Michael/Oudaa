@@ -131,6 +131,7 @@ function ProfileTab({ user, isCommittee }) {
   const fileRef = useRef(null)
 
   const [phone, setPhone] = useState(me?.phone || '')
+  const [phoneEditing, setPhoneEditing] = useState(false)
   // Profile picture is a real database field now (User.avatarUrl, stored
   // in object storage — see storage.js) instead of a base64 data URL
   // cached in this browser's localStorage, so it follows the user to any
@@ -177,6 +178,7 @@ function ProfileTab({ user, isCommittee }) {
       if (pendingAction.type === 'phone') {
         await api.post(endpoints.myOtpVerifyPhone(), { otp: otpInput.trim() })
         await refresh()
+        setPhoneEditing(false)
         setBanner('Phone number updated.')
       } else if (pendingAction.type === 'avatar') {
         const ok = await uploadAvatar(pendingAction.payload.file, otpInput.trim())
@@ -190,7 +192,7 @@ function ProfileTab({ user, isCommittee }) {
       setSentNotice('')
       setTimeout(() => setBanner(''), 4000)
     } catch (err) {
-      setOtpError(err?.response?.data?.message || err.message || 'That code didn\u2019t work. Check it and try again.')
+      setOtpError(err?.response?.data?.message || err.message || 'That code didn’t work. Check it and try again.')
     } finally {
       setOtpVerifying(false)
     }
@@ -239,7 +241,18 @@ function ProfileTab({ user, isCommittee }) {
   function submitPhone(e) {
     e.preventDefault()
     if (!phone.trim()) return
+    if (!phoneEditing) {
+      // First tap: just enter edit mode, don't send OTP yet
+      setPhoneEditing(true)
+      return
+    }
+    // Second explicit tap on "Send OTP": now send
     beginVerifiedChange('phone', { phone: phone.trim() })
+  }
+
+  function cancelPhoneEdit() {
+    setPhoneEditing(false)
+    setPhone(me?.phone || '')
   }
 
   return (
@@ -285,8 +298,23 @@ function ProfileTab({ user, isCommittee }) {
       {/* Phone */}
       <form onSubmit={submitPhone} className="card p-5 mb-5 space-y-3">
         <h3 className="font-semibold text-ink-800 flex items-center gap-2"><Phone className="h-4 w-4 text-brand-600" /> Phone number</h3>
-        <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+251 9xx xxx xxx" />
-        <button type="submit" disabled={otpSending} className="btn-secondary">{otpSending ? 'Sending code…' : 'Update phone (verify by email)'}</button>
+        <input
+          className="input"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+251 9xx xxx xxx"
+          readOnly={!phoneEditing}
+        />
+        {!phoneEditing ? (
+          <button type="submit" className="btn-secondary">Update phone number</button>
+        ) : (
+          <div className="flex gap-2">
+            <button type="button" onClick={cancelPhoneEdit} disabled={otpSending} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={otpSending || !phone.trim()} className="btn-primary flex-1">
+              {otpSending ? 'Sending code…' : 'Send OTP'}
+            </button>
+          </div>
+        )}
       </form>
 
       {/* OTP modal */}
@@ -334,7 +362,7 @@ function SecurityTab() {
     e.preventDefault()
     setPwError('')
     if (pwForm.next.length < 8) return setPwError('New password must be at least 8 characters.')
-    if (pwForm.next !== pwForm.confirm) return setPwError('New password and confirmation don\u2019t match.')
+    if (pwForm.next !== pwForm.confirm) return setPwError('New password and confirmation don’t match.')
     setPwLoading(true)
     try {
       const { data } = await api.patch(endpoints.changePassword(), {
@@ -365,7 +393,7 @@ function SecurityTab() {
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />
           </div>
           <p className="text-sm text-ink-500">
-            Your password was changed successfully. You\u2019re still signed in here \u2014 any other devices or
+            Your password was changed successfully. You&rsquo;re still signed in here &mdash; any other devices or
             browsers you were logged in on have been signed out and will need the new password.
           </p>
           <button type="button" onClick={() => setSuccessOpen(false)} className="btn-primary w-full mt-2">Done</button>
@@ -428,7 +456,7 @@ function NotificationsTab({ user, roleKey }) {
       <div className="card p-5">
         <h3 className="font-semibold text-ink-800 flex items-center gap-2 mb-1"><Bell className="h-4 w-4 text-brand-600" /> What shows up in your notification bell</h3>
         <p className="text-xs text-ink-400 mb-4">
-          Turn off any category you don\u2019t want to see. Saved to your account, so it applies wherever you sign in.
+          Turn off any category you don’t want to see. Saved to your account, so it applies wherever you sign in.
         </p>
         <div className="divide-y divide-ink-100">
           {categories.map((c) => (
@@ -1257,7 +1285,7 @@ function MembershipTab({ user }) {
       setMyOutgoingRequest(created)
       setTransferConfirm(false)
       setTransferOpen(false)
-      setBanner('Transfer request sent. It needs every other committee member to approve, then the resident\u2019s acceptance.')
+      setBanner('Transfer request sent. It needs every other committee member to approve, then the resident’s acceptance.')
       setTimeout(() => setBanner(''), 5000)
     } catch (err) {
       setTransferError(err?.response?.data?.message || err.message || 'Could not start the transfer.')
@@ -1296,7 +1324,7 @@ function MembershipTab({ user }) {
             <div className="flex items-center gap-2 text-sm text-amber-700">
               <Clock className="h-4 w-4 shrink-0" />
               <span>
-                Pending &mdash; {myOutgoingRequest.status === 'PENDING_COMMITTEE' ? 'awaiting committee approval' : 'awaiting the resident\u2019s acceptance'} for{' '}
+                Pending &mdash; {myOutgoingRequest.status === 'PENDING_COMMITTEE' ? 'awaiting committee approval' : 'awaiting the resident’s acceptance'} for{' '}
                 <strong>{myOutgoingRequest.toResident?.user?.fullName}</strong>.
               </span>
             </div>

@@ -18,7 +18,7 @@ const FAQS = [
     category: 'Account',
     question: 'How do I log in?',
     answer:
-      'You can log in with either your email address or your phone number, plus your password. If your community hasn\u2019t added your account yet, ask a committee member to create your resident profile first — you can\u2019t self-register.',
+      'You can log in with either your email address or your phone number, plus your password. If your community hasn’t added your account yet, ask a committee member to create your resident profile first — you can’t self-register.',
   },
   {
     id: 'forgot-password',
@@ -26,7 +26,7 @@ const FAQS = [
     category: 'Account',
     question: 'I forgot my password. What do I do?',
     answer:
-      'On the login screen, tap "Forgot password?" and enter the email on your account. You\u2019ll get a reset link by email (valid for a limited time and usable only once). If you never receive it, check spam, confirm the email on file with your committee, and try again.',
+      'On the login screen, tap "Forgot password?" and enter the email on your account. You’ll get a reset link by email (valid for a limited time and usable only once). If you never receive it, check spam, confirm the email on file with your committee, and try again.',
   },
   {
     id: 'update-profile',
@@ -42,7 +42,7 @@ const FAQS = [
     category: 'Account',
     question: 'How do I change my password?',
     answer:
-      'Go to Profile → Security, enter your current password and your new one. You\u2019ll stay logged in on this device; other devices will need the new password next time they refresh their session.',
+      'Go to Profile → Security, enter your current password and your new one. You’ll stay logged in on this device; other devices will need the new password next time they refresh their session.',
   },
   {
     id: 'session-expired',
@@ -50,7 +50,7 @@ const FAQS = [
     category: 'Account',
     question: 'Why do I keep getting logged out?',
     answer:
-      'Your login session normally lasts several days and refreshes automatically in the background while you use the app. If you\u2019re seeing "Your session expired" often, it usually means the refresh cookie was blocked or cleared (private/incognito windows, or browser settings that block cookies) — try a normal browser window.',
+      'Your login session normally lasts several days and refreshes automatically in the background while you use the app. If you’re seeing "Your session expired" often, it usually means the refresh cookie was blocked or cleared (private/incognito windows, or browser settings that block cookies) — try a normal browser window.',
   },
 
   // ---------------------------------------------------------------------
@@ -62,7 +62,7 @@ const FAQS = [
     category: 'Payments',
     question: 'How do I make a payment?',
     answer:
-      'Go to My Payments → Make a payment. Choose what you\u2019re paying for (a fee, a project, or a fund), pick one of the community\u2019s listed payment methods (e.g. CBE or Telebirr), send the money through your bank/mobile app, then come back and submit the transaction details so it can be verified.',
+      'Go to My Payments → Make a payment. Choose what you’re paying for (a fee, a project, or a fund), pick one of the community’s listed payment methods (e.g. CBE or Telebirr), send the money through your bank/mobile app, then come back and submit the transaction details so it can be verified.',
   },
   {
     id: 'self-verify-explained',
@@ -70,7 +70,7 @@ const FAQS = [
     category: 'Payments',
     question: 'What does "self-verify" mean, and why did my payment go to Pending Review instead of Verified?',
     answer:
-      'When you submit a bank transfer yourself, Oudaa automatically checks it against the bank\u2019s records. If everything matches cleanly (amount, payer name, receiving account) it\u2019s marked Verified instantly. If something looks slightly off — a name mismatch, an unusually large amount, or the bank response didn\u2019t have enough detail to be fully sure — it\u2019s set to Pending Review so a committee member can double-check it manually. This is a safeguard, not an accusation.',
+      'When you submit a bank transfer yourself, Oudaa automatically checks it against the bank’s records. If everything matches cleanly (amount, payer name, receiving account) it’s marked Verified instantly. If something looks slightly off — a name mismatch, an unusually large amount, or the bank response didn’t have enough detail to be fully sure — it’s set to Pending Review so a committee member can double-check it manually. This is a safeguard, not an accusation.',
   },
   {
     id: 'upload-receipt-screenshot',
@@ -86,15 +86,15 @@ const FAQS = [
     category: 'Payments',
     question: 'My payment was rejected. What now?',
     answer:
-      'A rejected payment means the committee could not verify it against the community\u2019s bank records (wrong account, amount mismatch, duplicate submission, etc.). Check the reason shown on the payment, and if you believe it\u2019s a mistake, contact a committee member directly with your transaction reference so they can look into it — you can also resubmit a corrected payment.',
+      'A rejected payment means the committee could not verify it against the community’s bank records (wrong account, amount mismatch, duplicate submission, etc.). Check the reason shown on the payment, and if you believe it’s a mistake, contact a committee member directly with your transaction reference so they can look into it — you can also resubmit a corrected payment.',
   },
   {
     id: 'payment-methods-admin',
     role: 'ADMIN',
     category: 'Payments',
-    question: 'How do I add or change our community\u2019s payment accounts?',
+    question: 'How do I add or change our community’s payment accounts?',
     answer:
-      'Go to Settings → Payment Methods. You can add a CBE bank account or a Telebirr number, give it a label residents will see (e.g. "CBE — Main Account"), and mark it active/inactive. Changes to core payment details go through committee approval (see Pending Changes) before they take effect, so one member can\u2019t silently redirect where resident money goes.',
+      'Go to Settings → Payment Methods. You can add a CBE bank account or a Telebirr number, give it a label residents will see (e.g. "CBE — Main Account"), and mark it active/inactive. Changes to core payment details go through committee approval (see Pending Changes) before they take effect, so one member can’t silently redirect where resident money goes.',
   },
   {
     id: 'record-cash-payment',
@@ -102,23 +102,23 @@ const FAQS = [
     category: 'Payments',
     question: 'A resident paid me in cash. How do I record that?',
     answer:
-      'Go to Payments → Record payment, choose the resident, what it\u2019s for, the amount, and set the method to Cash (attach a photo of the receipt if you have one). Manually recorded payments can be edited or deleted later if you made a mistake — unlike a resident\u2019s own bank self-verified payment, which stays append-only since the bank is the source of truth for that one.',
+      'Go to Payments → Record payment, choose the resident, what it’s for, the amount, and set the method to Cash (attach a photo of the receipt if you have one). Manually recorded payments can be edited or deleted later if you made a mistake — unlike a resident’s own bank self-verified payment, which stays append-only since the bank is the source of truth for that one.',
   },
   {
     id: 'verify-pending-payment',
     role: 'ADMIN',
     category: 'Payments',
-    question: 'How do I review a payment that\u2019s Pending or Pending Review?',
+    question: 'How do I review a payment that’s Pending or Pending Review?',
     answer:
-      'Open Payments, filter by status, and click into the payment to see the resident\u2019s submitted details alongside the bank verification response (if any). From there you can Verify or Reject it. Verifying counts it toward the resident\u2019s balance and the community\u2019s totals; rejecting does not.',
+      'Open Payments, filter by status, and click into the payment to see the resident’s submitted details alongside the bank verification response (if any). From there you can Verify or Reject it. Verifying counts it toward the resident’s balance and the community’s totals; rejecting does not.',
   },
   {
     id: 'unpaid-residents',
     role: 'ADMIN',
     category: 'Payments',
-    question: 'How do I see who hasn\u2019t paid a fee yet?',
+    question: 'How do I see who hasn’t paid a fee yet?',
     answer:
-      'The Fees page and Reports → Collections both show payment status by resident and by month. You can also just ask the "Ask Oudaa AI" assistant in this panel — e.g. "who hasn\u2019t paid the August dues yet?" — and it will pull the current list for you.',
+      'The Fees page and Reports → Collections both show payment status by resident and by month. You can also just ask the "Ask Oudaa AI" assistant in this panel — e.g. "who hasn’t paid the August dues yet?" — and it will pull the current list for you.',
   },
 
   // ---------------------------------------------------------------------
@@ -130,7 +130,7 @@ const FAQS = [
     category: 'Residents',
     question: 'How do I add a new resident?',
     answer:
-      'Go to Residents → Add resident. Enter their name, email, unit number, and phone (used for phone-based login and reminders). They\u2019ll be created with a temporary password flow — they can use "Forgot password" with their email to set their own.',
+      'Go to Residents → Add resident. Enter their name, email, unit number, and phone (used for phone-based login and reminders). They’ll be created with a temporary password flow — they can use "Forgot password" with their email to set their own.',
   },
   {
     id: 'deactivate-resident',
@@ -138,15 +138,15 @@ const FAQS = [
     category: 'Residents',
     question: 'A resident moved out. What do I do with their account?',
     answer:
-      'Open their profile and choose Deactivate rather than deleting — this preserves their full payment history for your records while marking them Inactive/Moved out (you\u2019ll pick a reason). You can reactivate them later if needed, e.g. if they move back in.',
+      'Open their profile and choose Deactivate rather than deleting — this preserves their full payment history for your records while marking them Inactive/Moved out (you’ll pick a reason). You can reactivate them later if needed, e.g. if they move back in.',
   },
   {
     id: 'resident-owner-renter',
     role: 'ADMIN',
     category: 'Residents',
-    question: 'What\u2019s the difference between Owner and Renter on a resident profile?',
+    question: 'What’s the difference between Owner and Renter on a resident profile?',
     answer:
-      'It\u2019s just a label for your own records (ownerType) — Oudaa doesn\u2019t treat owners and renters differently for billing or permissions. Use it however your community finds useful, e.g. filtering reports.',
+      'It’s just a label for your own records (ownerType) — Oudaa doesn’t treat owners and renters differently for billing or permissions. Use it however your community finds useful, e.g. filtering reports.',
   },
 
   // ---------------------------------------------------------------------
@@ -156,7 +156,7 @@ const FAQS = [
     id: 'fees-vs-funds-vs-projects',
     role: 'ALL',
     category: 'Fees, Funds & Projects',
-    question: 'What\u2019s the difference between a Fee, a Fund, and a Project?',
+    question: 'What’s the difference between a Fee, a Fund, and a Project?',
     answer:
       'A Fee is a recurring or one-time charge every resident owes (e.g. monthly dues). A Fund is a pool of money set aside for a purpose (e.g. "Security Fund", "Emergency Fund") that residents can also contribute to directly. A Project is a specific initiative with its own budget (e.g. "Repave the parking lot") that draws money from one or more Funds.',
   },
@@ -182,7 +182,7 @@ const FAQS = [
     category: 'Fees, Funds & Projects',
     question: 'Can I set a fundraising goal for a fund?',
     answer:
-      'Yes — open the fund and set a Goal amount. Residents will see progress toward that goal on the fund\u2019s page.',
+      'Yes — open the fund and set a Goal amount. Residents will see progress toward that goal on the fund’s page.',
   },
   {
     id: 'cancel-project',
@@ -190,7 +190,7 @@ const FAQS = [
     category: 'Fees, Funds & Projects',
     question: 'How do I cancel a project?',
     answer:
-      'Open the project and choose Cancel — you\u2019ll be asked for a reason, which is shown alongside the project afterward so residents understand why it stopped.',
+      'Open the project and choose Cancel — you’ll be asked for a reason, which is shown alongside the project afterward so residents understand why it stopped.',
   },
 
   // ---------------------------------------------------------------------
@@ -210,7 +210,7 @@ const FAQS = [
     category: 'Expenses',
     question: 'I recorded an expense wrong. How do I fix it?',
     answer:
-      'Expenses can\u2019t be edited directly once recorded — instead, open the expense and choose Reverse, which creates an offsetting entry and marks the original as voided. This keeps a clean, honest trail of what actually happened rather than silently rewriting history. Then record a new, corrected expense if needed.',
+      'Expenses can’t be edited directly once recorded — instead, open the expense and choose Reverse, which creates an offsetting entry and marks the original as voided. This keeps a clean, honest trail of what actually happened rather than silently rewriting history. Then record a new, corrected expense if needed.',
   },
   {
     id: 'receipt-verify',
@@ -218,7 +218,7 @@ const FAQS = [
     category: 'Expenses',
     question: 'What does "verify" mean on a receipt?',
     answer:
-      'It\u2019s a committee member confirming the uploaded receipt image genuinely matches the expense it\u2019s attached to — a lightweight second pair of eyes, visible to the whole committee, not an accounting audit.',
+      'It’s a committee member confirming the uploaded receipt image genuinely matches the expense it’s attached to — a lightweight second pair of eyes, visible to the whole committee, not an accounting audit.',
   },
 
   // ---------------------------------------------------------------------
@@ -230,7 +230,7 @@ const FAQS = [
     category: 'Committee & Approvals',
     question: 'Why do some changes need approval before they apply?',
     answer:
-      'Sensitive actions — like changing the community\u2019s payment account — require every other committee member to approve before they take effect. This shows up under Pending Changes (you\u2019ll get a notification). One rejection cancels the request; unresolved requests auto-expire after 24 hours.',
+      'Sensitive actions — like changing the community’s payment account — require every other committee member to approve before they take effect. This shows up under Pending Changes (you’ll get a notification). One rejection cancels the request; unresolved requests auto-expire after 24 hours.',
   },
   {
     id: 'auto-approval',
@@ -238,7 +238,7 @@ const FAQS = [
     category: 'Committee & Approvals',
     question: 'What is "auto-approval" and should I turn it on?',
     answer:
-      'It lets you pre-authorize your own approval for future low-stakes requests of a specific type (e.g. payment method edits), for a period you choose, instead of manually clicking approve every time. It\u2019s entirely optional and always has an expiry — use it only for change types you\u2019re comfortable rubber-stamping, since a request auto-approved this way still lists you as having approved it.',
+      'It lets you pre-authorize your own approval for future low-stakes requests of a specific type (e.g. payment method edits), for a period you choose, instead of manually clicking approve every time. It’s entirely optional and always has an expiry — use it only for change types you’re comfortable rubber-stamping, since a request auto-approved this way still lists you as having approved it.',
   },
   {
     id: 'committee-transfer',
@@ -254,7 +254,7 @@ const FAQS = [
     category: 'Committee & Approvals',
     question: 'What is the Audit Log for?',
     answer:
-      'It\u2019s a permanent, read-only record of every meaningful action taken in your community\u2019s account (who created/verified/rejected what, and when). Every committee member can view it; nothing in it can ever be edited or deleted, by design — it\u2019s there so the committee can always account for its own actions.',
+      'It’s a permanent, read-only record of every meaningful action taken in your community’s account (who created/verified/rejected what, and when). Every committee member can view it; nothing in it can ever be edited or deleted, by design — it’s there so the committee can always account for its own actions.',
   },
 
   // ---------------------------------------------------------------------
@@ -266,7 +266,7 @@ const FAQS = [
     category: 'Reports',
     question: 'What can I see in Reports?',
     answer:
-      'A financial summary (total collected, total spent, net balance), collections by fee/month, and expenses by category, with a monthly trend. Residents see their own community\u2019s totals; committee members get the same view with full drill-down and export options.',
+      'A financial summary (total collected, total spent, net balance), collections by fee/month, and expenses by category, with a monthly trend. Residents see their own community’s totals; committee members get the same view with full drill-down and export options.',
   },
   {
     id: 'export-report',

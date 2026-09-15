@@ -194,7 +194,7 @@ export default function AppLayout({ role }) {
         id: `xfer-recip-${req.id}`,
         icon: Users,
         tone: 'amber',
-        title: 'You\u2019ve been chosen as a committee member',
+        title: 'You’ve been chosen as a committee member',
         detail: `${req.fromUser?.fullName} wants to transfer their seat to you`,
         date: req.createdAt,
         transfer: { kind: 'recipient', request: req },
@@ -628,17 +628,17 @@ export default function AppLayout({ role }) {
             ) : confirmAction.kind === 'approver' ? (
               <p className="text-sm text-ink-500">
                 {confirmAction.decision === 'APPROVED' ? (
-                  <>You\u2019re approving <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>{'\u2019s'} request to transfer their committee seat to <strong className="text-ink-800">{confirmAction.request.toResident?.user?.fullName}</strong>. If every committee member approves, the resident will be asked to accept next.</>
+                  <>You’re approving <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>{'’s'} request to transfer their committee seat to <strong className="text-ink-800">{confirmAction.request.toResident?.user?.fullName}</strong>. If every committee member approves, the resident will be asked to accept next.</>
                 ) : (
-                  <>You\u2019re declining <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>{'\u2019s'} transfer request. This will cancel it immediately.</>
+                  <>You’re declining <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>{'’s'} transfer request. This will cancel it immediately.</>
                 )}
               </p>
             ) : (
               <p className="text-sm text-ink-500">
                 {confirmAction.decision === 'APPROVED' ? (
-                  <>You\u2019re accepting the committee seat offered by <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>. Once confirmed, you\u2019ll become a committee member immediately and they\u2019ll return to resident status.</>
+                  <>You’re accepting the committee seat offered by <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>. Once confirmed, you’ll become a committee member immediately and they’ll return to resident status.</>
                 ) : (
-                  <>You\u2019re declining the committee seat offered by <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>.</>
+                  <>You’re declining the committee seat offered by <strong className="text-ink-800">{confirmAction.request.fromUser?.fullName}</strong>.</>
                 )}
               </p>
             )}

@@ -69,7 +69,7 @@ const createTransferRequest = catchAsync(async (req, res) => {
     sendNotificationEmail({
       to: target.user.email,
       fullName: target.user.fullName,
-      subject: 'You\u2019ve been offered a committee seat',
+      subject: 'You’ve been offered a committee seat',
       message: `${req.user.fullName} has offered you their committee seat. Please review and respond in the app.`,
       communityName,
     }).catch(() => {});
@@ -165,8 +165,8 @@ const respondAsCommittee = catchAsync(async (req, res) => {
     sendNotificationEmail({
       to: updated.toResident.user.email,
       fullName: updated.toResident.user.fullName,
-      subject: 'You\u2019ve been offered a committee seat',
-      message: `The committee has approved ${updated.fromUser.fullName}\u2019s request to transfer their seat to you. Please review and respond in the app.`,
+      subject: 'You’ve been offered a committee seat',
+      message: `The committee has approved ${updated.fromUser.fullName}’s request to transfer their seat to you. Please review and respond in the app.`,
       communityName: await communityNameFor(req.communityId),
     }).catch(() => {});
   }
@@ -228,7 +228,7 @@ const respondAsRecipient = catchAsync(async (req, res) => {
     to: updated.toResident.user.email,
     fullName: updated.toResident.user.fullName,
     subject: 'You are now a committee member',
-    message: `You\u2019ve accepted ${updated.fromUser.fullName}\u2019s committee seat and are now a committee member. Welcome aboard!`,
+    message: `You’ve accepted ${updated.fromUser.fullName}’s committee seat and are now a committee member. Welcome aboard!`,
     communityName,
   }).catch(() => {});
 

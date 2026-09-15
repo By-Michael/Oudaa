@@ -179,7 +179,7 @@ export default function ResidentPayments() {
     // Belt-and-braces: the button is disabled until a name is entered, but
     // guard here too in case the input is ever reached another way.
     if (!form.payerName.trim()) {
-      setReceiptUploadError('Enter the sender\u2019s name above first.')
+      setReceiptUploadError('Enter the sender’s name above first.')
       if (receiptInputRef.current) receiptInputRef.current.value = ''
       return
     }

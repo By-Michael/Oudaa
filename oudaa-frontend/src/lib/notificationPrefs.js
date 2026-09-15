@@ -38,7 +38,7 @@ export const NOTIFICATION_CATEGORIES = [
   {
     id: 'fees',
     label: 'Fee reminders',
-    description: 'Fees you haven\u2019t paid yet.',
+    description: 'Fees you haven’t paid yet.',
     roles: ['resident'],
   },
 ]

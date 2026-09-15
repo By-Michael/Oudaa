@@ -21,7 +21,7 @@ const chatLimiter = rateLimit({
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, message: 'You\u2019re sending messages a bit fast — please slow down.' },
+  message: { success: false, message: 'You’re sending messages a bit fast — please slow down.' },
 });
 
 router.post('/chat', chatLimiter, validate(chatMessageSchema), ctrl.chat);

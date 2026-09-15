@@ -177,7 +177,7 @@ const login = catchAsync(async (req, res) => {
       ? await prisma.community.findUnique({ where: { id: user.communityId } })
       : null;
     if (!community || community.slug !== communitySlug) {
-      throw new AppError('This account is not part of this community\u2019s portal', 403);
+      throw new AppError('This account is not part of this community’s portal', 403);
     }
   }
 

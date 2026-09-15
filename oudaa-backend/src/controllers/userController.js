@@ -104,7 +104,7 @@ async function consumeOtp({ userId, type, otp }) {
   }
   if (hashToken(String(otp || '').trim()) !== row.otpHash) {
     await prisma.profileChangeOtp.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } });
-    throw new AppError('That code doesn\u2019t match. Check the code and try again.', 400);
+    throw new AppError('That code doesn’t match. Check the code and try again.', 400);
   }
   await prisma.profileChangeOtp.update({ where: { id: row.id }, data: { consumedAt: new Date() } });
   return row;

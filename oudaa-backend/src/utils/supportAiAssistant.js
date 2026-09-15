@@ -153,7 +153,7 @@ const ADMIN_TOOLS = [
     type: 'function',
     function: {
       name: 'get_financial_summary',
-      description: 'Get the community\u2019s current headline financial numbers: total collected, total spent, net balance, pending payment count, active project count, and per-fund balances.',
+      description: 'Get the community’s current headline financial numbers: total collected, total spent, net balance, pending payment count, active project count, and per-fund balances.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -196,7 +196,7 @@ const ADMIN_TOOLS = [
     type: 'function',
     function: {
       name: 'get_community_payment_info',
-      description: "Get where residents should send money \u2014 the community's registered payment methods (CBE bank account details and/or Telebirr number), or the legacy single bank account if no payment methods have been set up yet.",
+      description: "Get where residents should send money — the community's registered payment methods (CBE bank account details and/or Telebirr number), or the legacy single bank account if no payment methods have been set up yet.",
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -220,7 +220,7 @@ const ADMIN_TOOLS = [
     type: 'function',
     function: {
       name: 'list_recent_expenses',
-      description: 'List the community\u2019s most recent recorded expenses, optionally filtered by category.',
+      description: 'List the community’s most recent recorded expenses, optionally filtered by category.',
       parameters: {
         type: 'object',
         properties: {
@@ -253,7 +253,7 @@ const ADMIN_TOOLS = [
     type: 'function',
     function: {
       name: 'query_records',
-      description: 'Flexible read-only lookup for questions the other tools don\u2019t directly cover \u2014 e.g. "residents who paid this week", "payments over a date range", "expenses matching a vendor". Filter by date range, status, and/or free-text search on one entity at a time. Always scoped to this community only; cannot write, edit, or delete anything. Prefer a more specific tool above if one already fits the question exactly.',
+      description: 'Flexible read-only lookup for questions the other tools don’t directly cover — e.g. "residents who paid this week", "payments over a date range", "expenses matching a vendor". Filter by date range, status, and/or free-text search on one entity at a time. Always scoped to this community only; cannot write, edit, or delete anything. Prefer a more specific tool above if one already fits the question exactly.',
       parameters: {
         type: 'object',
         properties: {
@@ -261,7 +261,7 @@ const ADMIN_TOOLS = [
           dateFrom: { type: 'string', description: 'Inclusive start date, YYYY-MM-DD. Filters payment.paidAt, expense.spentAt, project.startDate, or resident/fee/fund.createdAt depending on entity. Omit for no lower bound.' },
           dateTo: { type: 'string', description: 'Inclusive end date, YYYY-MM-DD. Omit for no upper bound.' },
           status: { type: 'string', description: 'Exact status filter where applicable (payment: PENDING/PENDING_REVIEW/VERIFIED/REJECTED; resident: ACTIVE/INACTIVE/MOVED_OUT; project: PLANNED/ONGOING/COMPLETED/CANCELLED). Omit for fee/expense/fund.' },
-          textSearch: { type: 'string', description: 'Partial, case-insensitive match against the entity\u2019s main name field (resident name/unit, fee name, expense vendor/description, project/fund name). Not supported for payment.' },
+          textSearch: { type: 'string', description: 'Partial, case-insensitive match against the entity’s main name field (resident name/unit, fee name, expense vendor/description, project/fund name). Not supported for payment.' },
           limit: { type: 'integer', description: 'Max rows to return, default 20, max 50.' },
         },
         required: ['entity'],
@@ -275,7 +275,7 @@ const RESIDENT_TOOLS = [
     type: 'function',
     function: {
       name: 'get_my_payment_history',
-      description: 'Get the current user\u2019s own recent payments and their statuses.',
+      description: 'Get the current user’s own recent payments and their statuses.',
       parameters: {
         type: 'object',
         properties: { limit: { type: 'integer', description: 'Max rows, default 15, max 50.' } },
@@ -294,7 +294,7 @@ const RESIDENT_TOOLS = [
     type: 'function',
     function: {
       name: 'get_community_funds_overview',
-      description: 'Get the community\u2019s funds, their goals, and current balances.',
+      description: 'Get the community’s funds, their goals, and current balances.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -302,7 +302,7 @@ const RESIDENT_TOOLS = [
     type: 'function',
     function: {
       name: 'get_community_projects_overview',
-      description: 'Get the community\u2019s projects, their status and budget.',
+      description: 'Get the community’s projects, their status and budget.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -322,7 +322,7 @@ const RESIDENT_TOOLS = [
     type: 'function',
     function: {
       name: 'get_community_payment_info',
-      description: "Get where to send money \u2014 the community's registered payment methods (CBE bank account details and/or Telebirr number), or the legacy single bank account if none are set up yet.",
+      description: "Get where to send money — the community's registered payment methods (CBE bank account details and/or Telebirr number), or the legacy single bank account if none are set up yet.",
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -338,7 +338,7 @@ const RESIDENT_TOOLS = [
     type: 'function',
     function: {
       name: 'get_community_spending_summary',
-      description: "Get how much the community has spent, broken down by category (SECURITY/WATER/CLEANING/MAINTENANCE/IMPROVEMENT/ADMIN/OTHER), optionally over a date range. Rollup totals only \u2014 no vendor names or who recorded it, since that line-item detail is committee-only.",
+      description: "Get how much the community has spent, broken down by category (SECURITY/WATER/CLEANING/MAINTENANCE/IMPROVEMENT/ADMIN/OTHER), optionally over a date range. Rollup totals only — no vendor names or who recorded it, since that line-item detail is committee-only.",
       parameters: {
         type: 'object',
         properties: {
@@ -352,7 +352,7 @@ const RESIDENT_TOOLS = [
     type: 'function',
     function: {
       name: 'get_my_profile',
-      description: "Get the current user's own resident profile \u2014 unit number, phone, ID number, address, owner/renter type, status, and when they joined.",
+      description: "Get the current user's own resident profile — unit number, phone, ID number, address, owner/renter type, status, and when they joined.",
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -360,7 +360,7 @@ const RESIDENT_TOOLS = [
     type: 'function',
     function: {
       name: 'query_records',
-      description: 'Flexible read-only lookup for your OWN data, or the community\u2019s public fee/project/fund records \u2014 e.g. "my payments this month", "my payments over 500 birr", "projects that are ongoing". Filter by date range, status, and/or text search. Payment/resident lookups are always scoped to you only; cannot write, edit, or delete anything.',
+      description: 'Flexible read-only lookup for your OWN data, or the community’s public fee/project/fund records — e.g. "my payments this month", "my payments over 500 birr", "projects that are ongoing". Filter by date range, status, and/or text search. Payment/resident lookups are always scoped to you only; cannot write, edit, or delete anything.',
       parameters: {
         type: 'object',
         properties: {
@@ -368,7 +368,7 @@ const RESIDENT_TOOLS = [
           dateFrom: { type: 'string', description: 'Inclusive start date, YYYY-MM-DD. Filters paidAt/createdAt/startDate depending on entity. Omit for no lower bound.' },
           dateTo: { type: 'string', description: 'Inclusive end date, YYYY-MM-DD. Omit for no upper bound.' },
           status: { type: 'string', description: 'payment: PENDING/PENDING_REVIEW/VERIFIED/REJECTED. project: PLANNED/ONGOING/COMPLETED/CANCELLED. Omit for fee/fund.' },
-          textSearch: { type: 'string', description: 'Partial, case-insensitive match against the entity\u2019s name (fee/project/fund name). Not supported for payment.' },
+          textSearch: { type: 'string', description: 'Partial, case-insensitive match against the entity’s name (fee/project/fund name). Not supported for payment.' },
           limit: { type: 'integer', description: 'Max rows, default 20, max 50.' },
         },
         required: ['entity'],

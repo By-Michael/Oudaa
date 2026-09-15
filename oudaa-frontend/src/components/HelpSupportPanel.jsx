@@ -371,7 +371,7 @@ function ChatTab({ userName }) {
       {!aiConfigured && (
         <div className="shrink-0 mx-5 mb-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
           <Mail className="h-3.5 w-3.5 shrink-0" />
-          The AI assistant isn\u2019t set up yet on this server — you can still browse the FAQ, or email support@oudaa.app.
+          The AI assistant isn’t set up yet on this server — you can still browse the FAQ, or email support@oudaa.app.
         </div>
       )}
 

@@ -9,6 +9,7 @@ const {
   updateResidentSchema,
   idParamSchema,
   deactivateResidentSchema,
+  bulkImportResidentsSchema,
 } = require('../validators/residentValidators');
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.get('/me', authorize('RESIDENT'), ctrl.getMyResidentProfile);
 router.patch('/me', authorize('RESIDENT'), ctrl.updateMyResidentProfile);
 
 router.post('/', authorize('ADMIN'), validate(createResidentSchema), ctrl.createResident);
+router.post('/bulk-import', authorize('ADMIN'), validate(bulkImportResidentsSchema), ctrl.bulkImportResidents);
 router.get('/', authorize('ADMIN'), ctrl.listResidents);
 router.get('/meta/common-inactive-reasons', authorize('ADMIN'), ctrl.listCommonInactiveReasons);
 router.get('/:id', authorize('ADMIN'), validate(idParamSchema), ctrl.getResident);

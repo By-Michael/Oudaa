@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
-import { Plus, Search, Pencil, Trash2, Users, Phone, Mail, Copy, Check, AlertTriangle, Eye, MapPin, IdCard, ReceiptText, ShieldCheck, Download, Ban, RotateCcw } from 'lucide-react'
+import { useMemo, useState, useRef } from 'react'
+import { Plus, Search, Pencil, Trash2, Users, Phone, Mail, Copy, Check, AlertTriangle, Eye, MapPin, IdCard, ReceiptText, ShieldCheck, Download, Ban, RotateCcw, Upload, FileSpreadsheet, Loader2, FileCheck2 } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { PageHeader, Badge, Modal, EmptyState, formatDate, currency, ConfirmDialog, notify, usePagedList, Pager } from '../../components/ui'
+import { downloadResidentImportTemplate, parseResidentImportFile, RESIDENT_IMPORT_COLUMNS } from '../../lib/residentImport'
 
 const empty = { name: '', unit: '', phone: '', email: '', idNumber: '', ownerType: 'owner', address: '' }
 
@@ -28,7 +29,7 @@ function generateTempPassword() {
 }
 
 export default function Residents() {
-  const { residents, addResident, updateResident, removeResident, fetchResidentSummary, residentsMeta, deactivateResident, reactivateResident, exportResidentPayments } = useData()
+  const { residents, addResident, updateResident, removeResident, fetchResidentSummary, residentsMeta, deactivateResident, reactivateResident, exportResidentPayments, bulkImportResidents } = useData()
   const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // all | active | inactive
@@ -55,6 +56,69 @@ export default function Residents() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [exporting, setExporting] = useState(false)
+
+  // ---- Import residents (bulk, from spreadsheet) ----
+  const importFileRef = useRef(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFileName, setImportFileName] = useState('')
+  const [importRows, setImportRows] = useState(null) // parsed rows, ready to send
+  const [importSkippedExample, setImportSkippedExample] = useState(false)
+  const [importParseError, setImportParseError] = useState('')
+  const [importSubmitting, setImportSubmitting] = useState(false)
+  const [importResult, setImportResult] = useState(null) // { created, failed: [{row,email,message}] }
+
+  function openImport() {
+    setImportFileName('')
+    setImportRows(null)
+    setImportSkippedExample(false)
+    setImportParseError('')
+    setImportResult(null)
+    setImportOpen(true)
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportFileName(file.name)
+    setImportRows(null)
+    setImportParseError('')
+    setImportResult(null)
+    try {
+      const { rows, skippedExample } = await parseResidentImportFile(file)
+      if (rows.length === 0) {
+        setImportParseError('No resident rows found in that file — make sure you filled in rows below the header.')
+        return
+      }
+      setImportRows(rows)
+      setImportSkippedExample(skippedExample)
+    } catch (err) {
+      setImportParseError(err.message || 'Could not read that file.')
+    } finally {
+      if (importFileRef.current) importFileRef.current.value = ''
+    }
+  }
+
+  async function submitImport() {
+    if (!importRows?.length) return
+    setImportSubmitting(true)
+    try {
+      const result = await bulkImportResidents(importRows)
+      setImportResult(result)
+      setImportRows(null)
+      setImportFileName('')
+      if (result.created > 0) {
+        notify(`Imported ${result.created} resident${result.created === 1 ? '' : 's'}.`, 'success')
+      }
+    } catch (err) {
+      const status = err?.response?.status
+      const msg = status === 429
+        ? "You're doing that a bit too fast — please wait a moment and try again."
+        : (err?.response?.data?.message || err.message || 'Could not import that file. Please try again.')
+      setImportParseError(msg)
+    } finally {
+      setImportSubmitting(false)
+    }
+  }
 
   // ---- Deactivate resident: reason popup ----
   const [deactivateTarget, setDeactivateTarget] = useState(null) // resident being deactivated
@@ -255,7 +319,12 @@ export default function Residents() {
       <PageHeader
         title="Residents"
         subtitle={`${residentsMeta.total} registered · ${residentsMeta.activeTotal} active`}
-        action={<button onClick={openAdd} className="btn-primary"><Plus className="h-4 w-4" /> Add resident</button>}
+        action={
+          <div className="flex items-center gap-2">
+            <button onClick={openImport} className="btn-secondary"><Upload className="h-4 w-4" /> Import residents</button>
+            <button onClick={openAdd} className="btn-primary"><Plus className="h-4 w-4" /> Add resident</button>
+          </div>
+        }
       />
 
       <div className="card p-4 mb-5">
@@ -349,6 +418,111 @@ export default function Residents() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={importOpen}
+        onClose={() => { if (!importSubmitting) setImportOpen(false) }}
+        title="Import residents"
+        wide
+      >
+        <div className="space-y-5">
+          {!importResult ? (
+            <>
+              <div className="rounded-xl bg-brand-50 border border-brand-100 px-4 py-3.5 text-sm text-ink-600">
+                <p className="mb-2">
+                  Download the template below, fill in one resident per row, then upload it here to add
+                  them all at once. Each resident gets a system-generated temporary password and an
+                  email with their login details, exactly like adding one resident at a time — you don't
+                  need to (and shouldn't) include a password column.
+                </p>
+                <button type="button" onClick={downloadResidentImportTemplate} className="btn-secondary !py-2 text-sm">
+                  <FileSpreadsheet className="h-4 w-4" /> Download Excel template
+                </button>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2">What goes in each column</p>
+                <div className="rounded-xl border border-ink-100 divide-y divide-ink-50 overflow-hidden">
+                  {RESIDENT_IMPORT_COLUMNS.map((c) => (
+                    <div key={c.key} className="flex items-start gap-3 px-3.5 py-2.5 text-xs">
+                      <span className="font-semibold text-ink-800 w-40 shrink-0">{c.header.replace('*', '')}</span>
+                      <span className={`shrink-0 w-16 font-medium ${c.required ? 'text-rose-600' : 'text-ink-400'}`}>
+                        {c.required ? 'Required' : 'Optional'}
+                      </span>
+                      <span className="text-ink-500">{c.note}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2">Upload your filled-in file</p>
+                <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
+                <button
+                  type="button"
+                  onClick={() => importFileRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-ink-200 py-3.5 text-sm font-medium text-ink-600 hover:text-brand-700 hover:border-brand-300 transition"
+                >
+                  {importRows ? <FileCheck2 className="h-4 w-4 text-emerald-600" /> : <Upload className="h-4 w-4" />}
+                  {importFileName || 'Choose an .xlsx, .xls, or .csv file'}
+                </button>
+                {importParseError && (
+                  <p className="mt-2 text-xs text-rose-600 flex items-start gap-1.5"><AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {importParseError}</p>
+                )}
+                {importRows && (
+                  <p className="mt-2 text-xs text-emerald-600">
+                    Found {importRows.length} resident{importRows.length === 1 ? '' : 's'} in this file, ready to import.
+                    {importSkippedExample ? ' (Skipped the example row automatically.)' : ''}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setImportOpen(false)} disabled={importSubmitting} className="btn-secondary flex-1">Cancel</button>
+                <button
+                  type="button"
+                  onClick={submitImport}
+                  disabled={!importRows?.length || importSubmitting}
+                  className="btn-primary flex-1"
+                >
+                  {importSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Importing…</> : `Import${importRows?.length ? ` ${importRows.length} resident${importRows.length === 1 ? '' : 's'}` : ''}`}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3.5 text-sm text-emerald-700 flex items-start gap-2.5">
+                <Check className="h-4 w-4 shrink-0 mt-0.5" />
+                <p>
+                  Imported <strong>{importResult.created}</strong> resident{importResult.created === 1 ? '' : 's'} successfully.
+                  {importResult.created > 0 ? ' Each of them has been emailed their login details.' : ''}
+                </p>
+              </div>
+              {importResult.failed.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2">
+                    {importResult.failed.length} row{importResult.failed.length === 1 ? '' : 's'} skipped
+                  </p>
+                  <div className="rounded-xl border border-ink-100 divide-y divide-ink-50 max-h-64 overflow-y-auto">
+                    {importResult.failed.map((f) => (
+                      <div key={f.row} className="flex items-start gap-3 px-3.5 py-2.5 text-xs">
+                        <span className="font-semibold text-ink-700 shrink-0">Row {f.row}</span>
+                        <span className="text-ink-400 shrink-0 max-w-[160px] truncate">{f.email || '(no email)'}</span>
+                        <span className="text-rose-600">{f.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-ink-400">Fix these rows in your spreadsheet and re-upload just those — everything else has already been imported.</p>
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setImportOpen(false)} className="btn-secondary flex-1">Close</button>
+                <button type="button" onClick={openImport} className="btn-primary flex-1">Import another file</button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
 
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit resident' : 'Add resident'} wide>
         <form onSubmit={submit} className="space-y-5">

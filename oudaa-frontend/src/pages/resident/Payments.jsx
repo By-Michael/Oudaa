@@ -283,13 +283,20 @@ export default function ResidentPayments() {
     }
   }
 
-  const isAdminPreview = user?.role === 'admin'
+  // An admin only needs blocking from resident self-serve actions if they
+  // genuinely have no resident profile to act as (see User.resident in
+  // schema.prisma) — plenty of admins ARE also a resident of their own
+  // community and can use this page for real, not just preview it.
+  // user.residentId is populated from that same link at login (see
+  // AuthContext), for any role, so it's the right signal here rather than
+  // role alone.
+  const isAdminPreview = user?.role === 'admin' && !user?.residentId
 
   async function attemptSubmit() {
     setError('')
     setCanRetry(false)
     if (isAdminPreview) {
-      setError("You're previewing the resident view as an admin — payment submission is only available to residents.")
+      setError("You're an admin with no resident profile of your own in this community — payment submission is resident-only.")
       return
     }
     if (isCbe && !form.receiptUrl) {
@@ -605,7 +612,7 @@ export default function ResidentPayments() {
                   type="button"
                   onClick={() => receiptInputRef.current?.click()}
                   disabled={!payerNameReady || receiptUploading || ocrLoading || isAdminPreview}
-                  title={isAdminPreview ? "You're previewing the resident view as an admin — receipt upload is only available to residents." : undefined}
+                  title={isAdminPreview ? "You have no resident profile in this community — receipt upload is resident-only." : undefined}
                   className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed ${
                     payerNameReady ? 'bg-brand-gradient text-white' : 'bg-ink-100 text-ink-400'
                   }`}
@@ -615,7 +622,7 @@ export default function ResidentPayments() {
                 </button>
                 {isAdminPreview && (
                   <p className="mt-1.5 text-xs text-center text-ink-400">
-                    Receipt upload is resident-only — you're previewing this page as an admin.
+                    Receipt upload is resident-only, and you don't have a resident profile in this community.
                   </p>
                 )}
                 {receiptFileName && form.receiptUrl && !receiptUploading && !ocrLoading && (
@@ -702,7 +709,7 @@ export default function ResidentPayments() {
 
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={closeModal} className="btn-secondary flex-1">Cancel</button>
-              <button type="submit" className="btn-primary flex-1" disabled={isAdminPreview} title={isAdminPreview ? 'Admins are previewing this page — submission is resident-only' : undefined}>Submit payment</button>
+              <button type="submit" className="btn-primary flex-1" disabled={isAdminPreview} title={isAdminPreview ? "You don't have a resident profile in this community — submission is resident-only." : undefined}>Submit payment</button>
             </div>
           </form>
         )}

@@ -8,10 +8,13 @@ const createResidentSchema = z.object({
     unitNumber: z.string().min(1),
     // No `status` here on purpose — residents are always created ACTIVE.
     // Deactivation happens afterwards via the dedicated deactivate action.
-    phone: z.string().min(3).optional(),
-    idNumber: z.string().min(1).optional(),
+    // phone/idNumber/ownerType are required here to match the bulk-import
+    // path (residentController.bulkImportResidents) — a resident record
+    // created either way should have the same completeness.
+    phone: z.string().min(3),
+    idNumber: z.string().min(1),
     address: z.string().optional(),
-    ownerType: z.enum(['OWNER', 'RENTER']).optional(),
+    ownerType: z.enum(['OWNER', 'RENTER']),
   }),
 });
 
@@ -41,4 +44,16 @@ const deactivateResidentSchema = z.object({
   }),
 });
 
-module.exports = { createResidentSchema, updateResidentSchema, idParamSchema, deactivateResidentSchema };
+const bulkImportResidentsSchema = z.object({
+  body: z.object({
+    // Loose per-row shape on purpose: the frontend has already parsed the
+    // spreadsheet and normalized blank cells to undefined (see
+    // parseResidentImportFile in Residents.jsx) — the controller does the
+    // real per-field validation itself so it can report a precise row
+    // number + reason instead of failing the whole batch on the first
+    // bad cell, which zod would otherwise do here.
+    residents: z.array(z.record(z.any())).min(1, 'The file has no resident rows').max(2000, 'Import up to 2000 residents at a time'),
+  }),
+});
+
+module.exports = { createResidentSchema, updateResidentSchema, idParamSchema, deactivateResidentSchema, bulkImportResidentsSchema };

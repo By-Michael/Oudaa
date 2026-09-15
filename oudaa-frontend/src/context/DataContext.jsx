@@ -436,6 +436,17 @@ export function DataProvider({ children }) {
       }
       return created.data.resident?.id
     },
+    // Bulk resident import: rows are already parsed from the uploaded
+    // spreadsheet by the caller (see parseResidentImportFile in
+    // Residents.jsx) — this just posts them and returns the per-row
+    // created/failed summary. Doesn't try to merge the new residents into
+    // local state one-by-one (could be hundreds) — a silent refresh picks
+    // up the real, authoritative list instead.
+    bulkImportResidents: async (rows) => {
+      const { data } = await api.post(endpoints.residentsBulkImport(), { residents: rows })
+      if (data.data.created > 0) refresh({ silent: true })
+      return data.data
+    },
     updateResident: async (id, patch) => {
       const { data } = await api.patch(endpoints.resident(id), residentToUpdateAPI(patch))
       const updated = residentToUI(data.data)

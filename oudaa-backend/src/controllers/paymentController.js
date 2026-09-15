@@ -366,7 +366,7 @@ const uploadPaymentReceipt = catchAsync(async (req, res) => {
 // folded into self-verify itself, so self-verify can stay a plain JSON
 // endpoint — every other provider never touches a file at all.
 const uploadSelfPaymentReceipt = catchAsync(async (req, res) => {
-  if (req.user.role !== 'RESIDENT') {
+  if (!['ADMIN', 'RESIDENT'].includes(req.user.role)) {
     throw new AppError('Only residents can upload a self-payment receipt', 403);
   }
   if (!req.file) throw new AppError('Receipt file is required', 422);
@@ -441,7 +441,11 @@ async function resolvePaymentMethod(req, community) {
 //   - legacy single-account communities (no CommunityPaymentMethod rows
 //     yet): the existing txnId flow, no provider hint.
 const selfVerifyPayment = catchAsync(async (req, res) => {
-  if (req.user.role !== 'RESIDENT') {
+  // Route-level authorize() lets ADMIN through too — an admin who's also a
+  // resident of their own community (User.resident, schema.prisma) can
+  // self-verify a payment for their own unit. If they have no linked
+  // resident profile, the lookup a few lines down 404s cleanly instead.
+  if (!['ADMIN', 'RESIDENT'].includes(req.user.role)) {
     throw new AppError('Only residents can submit self-verified payments', 403);
   }
 
@@ -808,7 +812,7 @@ const parsePaymentScreenshot = catchAsync(async (req, res) => {
 // has moved it to VERIFIED/REJECTED, this is no longer allowed; from that
 // point it falls under the same append-only rule as any other payment.
 const retractOwnPayment = catchAsync(async (req, res) => {
-  if (req.user.role !== 'RESIDENT') {
+  if (!['ADMIN', 'RESIDENT'].includes(req.user.role)) {
     throw new AppError('Only the resident who submitted a payment can retract it', 403);
   }
 

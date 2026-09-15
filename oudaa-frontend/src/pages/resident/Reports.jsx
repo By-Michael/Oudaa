@@ -20,7 +20,7 @@ const TREND_TABS = [
   { id: 'table', label: 'Data Table', icon: Table2 },
 ]
 
-function ContributionTrendCard({ myPayments, fees, dailySeries, categorySeries, monthlySeries, monthLabel }) {
+function ContributionTrendCard({ myPayments, fees, dailySeries, categorySeries, monthlySeries, monthLabel, loading }) {
   const [tab, setTab] = useState('trend')
 
   return (
@@ -32,7 +32,8 @@ function ContributionTrendCard({ myPayments, fees, dailySeries, categorySeries, 
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+              disabled={loading}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-40 ${
                 tab === t.id ? 'bg-white text-brand-700 shadow-soft' : 'text-ink-500 hover:text-ink-800'
               }`}
             >
@@ -44,6 +45,10 @@ function ContributionTrendCard({ myPayments, fees, dailySeries, categorySeries, 
       </div>
 
       <div className="p-5">
+        {loading ? (
+          <ChartPlaceholder height={300} label="Loading your payment history…" />
+        ) : (
+        <>
         {tab === 'trend' && (
           <>
             <h3 className="text-center text-sm font-semibold text-ink-800 mb-4">Daily Contributions — {monthLabel}</h3>
@@ -118,6 +123,8 @@ function ContributionTrendCard({ myPayments, fees, dailySeries, categorySeries, 
             )}
           </div>
         )}
+        </>
+        )}
       </div>
     </div>
   )
@@ -125,7 +132,7 @@ function ContributionTrendCard({ myPayments, fees, dailySeries, categorySeries, 
 
 export default function ResidentReports() {
   const { user } = useAuth()
-  const { funds, fees, payments, expenses, projects, residents, dataFullyLoaded } = useData()
+  const { funds, fees, payments, expenses, projects, residents, dataFullyLoaded, fullyLoaded } = useData()
   const me = residents.find((r) => r.id === user?.residentId) || residents[0]
 
   const myPayments = useMemo(() => payments.filter((p) => p.residentId === me?.id), [payments, me])
@@ -254,23 +261,22 @@ export default function ResidentReports() {
       />
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={Wallet} label="Total paid" value={currency(myTotalPaid)} sub={`${myVerified.length} verified payments`} accent="brand" loading={!dataFullyLoaded} />
-        <StatCard icon={TrendingUp} label="Compliance rate" value={`${myComplianceRate}%`} sub={`${unpaidFees.length} fee(s) outstanding`} accent="green" loading={!dataFullyLoaded} />
-        <StatCard icon={PiggyBank} label="Pending verification" value={myPending.length} sub={currency(myPending.reduce((s, p) => s + p.amount, 0))} accent="amber" loading={!dataFullyLoaded} />
-        <StatCard icon={Target} label="Community spend" value={currency(totalExpenses)} sub={`${projects.length} active project(s)`} accent="rose" loading={!dataFullyLoaded} />
+        {/* These three only ever read `payments` (fees is a small, atomic
+            fetch, never paginated) — gating them on the *whole* dataFullyLoaded
+            meant they'd sit in a skeleton waiting for the community-wide
+            expenses list too, even on a resident with nothing to compute. */}
+        <StatCard icon={Wallet} label="Total paid" value={currency(myTotalPaid)} sub={`${myVerified.length} verified payments`} accent="brand" loading={!fullyLoaded.payments} />
+        <StatCard icon={TrendingUp} label="Compliance rate" value={`${myComplianceRate}%`} sub={`${unpaidFees.length} fee(s) outstanding`} accent="green" loading={!fullyLoaded.payments} />
+        <StatCard icon={PiggyBank} label="Pending verification" value={myPending.length} sub={currency(myPending.reduce((s, p) => s + p.amount, 0))} accent="amber" loading={!fullyLoaded.payments} />
+        {/* This one sums `expenses`, so it's the one that should actually wait
+            on that background page-in. */}
+        <StatCard icon={Target} label="Community spend" value={currency(totalExpenses)} sub={`${projects.length} active project(s)`} accent="rose" loading={!fullyLoaded.expenses} />
       </div>
 
-      {!dataFullyLoaded ? (
-        // Fund progress / community spend below is computed across every
-        // resident's payments and every expense, not just this resident's
-        // own — wait for that background page-in to finish (see
-        // DataContext.dataFullyLoaded) rather than show totals that are
-        // still missing most of the community's data.
-        <div className="card p-10">
-          <ChartPlaceholder height={280} label="Loading community-wide totals…" />
-        </div>
-      ) : (
-      <>
+      {/* The trend/category/6-months/table card only ever reads `myPayments`
+          (this resident's own records) and `fees` — neither depends on the
+          community-wide expenses list — so it renders as soon as payments
+          are in, instead of waiting behind whatever's slowest to page in. */}
       <ContributionTrendCard
         myPayments={myPayments}
         fees={fees}
@@ -278,7 +284,20 @@ export default function ResidentReports() {
         categorySeries={categorySeries}
         monthlySeries={monthlySeries}
         monthLabel={monthLabel}
+        loading={!fullyLoaded.payments}
       />
+
+      {!dataFullyLoaded ? (
+        // Fund progress / community spend below is computed across every
+        // resident's payments and every expense, not just this resident's
+        // own — wait for that background page-in to finish (see
+        // DataContext.dataFullyLoaded) rather than show totals that are
+        // still missing most of the community's data.
+        <div className="card p-10 mt-5">
+          <ChartPlaceholder height={280} label="Loading community-wide totals…" />
+        </div>
+      ) : (
+      <>
 
       <div className="grid xl:grid-cols-2 gap-5 mt-5 xl:items-start">
         <div className="card p-5">

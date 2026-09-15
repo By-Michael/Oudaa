@@ -101,6 +101,148 @@ const createResident = catchAsync(async (req, res) => {
   res.status(201).json({ success: true, data: safeUser });
 });
 
+function generateTempPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ADMIN bulk-registers residents from the template spreadsheet (parsed to
+// JSON on the frontend — see Residents.jsx's import modal — so this just
+// takes an array of row objects, same shape per-row as createResident's
+// body minus `password`, since a temp password is generated per resident
+// here rather than typed into a spreadsheet).
+//
+// Note: phone, idNumber, and ownerType are REQUIRED here even though
+// they're optional on the single-add form/schema (createResidentSchema)
+// — a bulk import is expected to be a community's full resident roster,
+// where these fields are always known up front, so we don't want
+// hundreds of residents silently missing them.
+//
+// Runs sequentially, one row at a time, rather than in a single
+// transaction: a spreadsheet of hundreds of residents is expected to have
+// SOME bad/duplicate rows, and the point of a bulk import is that the good
+// rows still go in while the bad ones are reported back by row number —
+// an all-or-nothing transaction would make one typo in row 400 discard the
+// other 399 valid residents.
+const bulkImportResidents = catchAsync(async (req, res) => {
+  const { residents } = req.body;
+  const community = await prisma.community.findUnique({ where: { id: req.communityId } });
+
+  const results = { created: 0, failed: [] };
+  // Two rows in the same spreadsheet can't both "win" against a value
+  // that isn't in the DB yet when the first one is created — track what
+  // this batch has already used, on top of the DB checks below.
+  const seenEmails = new Set();
+  const seenUnits = new Set();
+  const seenIds = new Set();
+  const seenPhones = new Set();
+
+  for (let i = 0; i < residents.length; i++) {
+    const row = residents[i] || {};
+    // +2: the template's header is row 1, and spreadsheets are 1-indexed
+    // — so the first data row is row 2, matching what the admin sees if
+    // they open the file to fix a flagged row.
+    const rowNumber = i + 2;
+    const rawEmail = String(row.email || '').trim()
+    try {
+      const fullName = String(row.fullName || '').trim();
+      const email = rawEmail.toLowerCase();
+      const unitNumber = String(row.unitNumber || '').trim();
+      const phone = String(row.phone || '').trim();
+      const idNumber = String(row.idNumber || '').trim();
+      const address = row.address ? String(row.address).trim() : undefined;
+      const ownerTypeRaw = String(row.ownerType || '').trim().toUpperCase();
+      const ownerType = ownerTypeRaw === 'TENANT' || ownerTypeRaw === 'RENTER' ? 'RENTER' : (ownerTypeRaw === 'OWNER' ? 'OWNER' : null);
+
+      if (!fullName || fullName.length < 2) throw new AppError('Full name is required (at least 2 characters)', 422);
+      if (!email || !EMAIL_RE.test(email)) throw new AppError('A valid email is required', 422);
+      if (!unitNumber) throw new AppError('Unit / house number is required', 422);
+      if (!phone) throw new AppError('Phone is required', 422);
+      if (!idNumber) throw new AppError('ID number is required', 422);
+      if (!ownerType) throw new AppError('Owner or Tenant is required — write exactly "Owner" or "Tenant"', 422);
+
+      if (seenEmails.has(email)) throw new AppError('Duplicate email — already used earlier in this file', 409);
+      if (seenUnits.has(unitNumber)) throw new AppError('Duplicate unit / house number — already used earlier in this file', 409);
+      if (seenIds.has(idNumber)) throw new AppError('Duplicate ID number — already used earlier in this file', 409);
+      if (seenPhones.has(phone)) throw new AppError('Duplicate phone number — already used earlier in this file', 409);
+
+      const [existingEmail, unitClash, idClash, phoneClash] = await Promise.all([
+        prisma.user.findUnique({ where: { email } }),
+        prisma.resident.findFirst({ where: { unitNumber, communityId: req.communityId } }),
+        prisma.resident.findFirst({ where: { idNumber, communityId: req.communityId } }),
+        prisma.resident.findFirst({ where: { phone, communityId: req.communityId } }),
+      ]);
+      if (existingEmail) throw new AppError('Email already in use', 409);
+      if (unitClash) throw new AppError('That unit / house number is already assigned to another resident', 409);
+      if (idClash) throw new AppError('That ID number is already registered to another resident', 409);
+      if (phoneClash) throw new AppError('That phone number is already registered to another resident', 409);
+
+      const tempPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+      await prisma.user.create({
+        data: {
+          communityId: req.communityId,
+          fullName,
+          email,
+          passwordHash,
+          role: 'RESIDENT',
+          resident: {
+            create: {
+              communityId: req.communityId,
+              unitNumber,
+              status: 'ACTIVE',
+              phone,
+              phoneSearchKey: phoneSearchKeyFor(phone),
+              idNumber,
+              address,
+              ownerType,
+            },
+          },
+        },
+      });
+
+      seenEmails.add(email);
+      seenUnits.add(unitNumber);
+      seenIds.add(idNumber);
+      seenPhones.add(phone);
+      results.created += 1;
+
+      // Same fire-and-forget pattern as the single-resident flow — a
+      // failed/absent email must never fail the import itself, and with
+      // potentially hundreds of rows this can't block on each send.
+      sendResidentWelcomeEmail({
+        to: email,
+        fullName,
+        tempPassword,
+        loginUrl: `${FRONTEND_URL.replace(/\/$/, '')}/login`,
+        communityName: community?.name,
+      }).catch(() => {});
+    } catch (err) {
+      results.failed.push({
+        row: rowNumber,
+        email: rawEmail,
+        message: err instanceof AppError ? err.message : (err.message || 'Could not create this resident'),
+      });
+    }
+  }
+
+  if (results.created > 0) {
+    await recordAudit(req, {
+      action: 'CREATE',
+      entityType: 'Resident',
+      entityId: null,
+      description: `Bulk-imported ${results.created} resident(s) from a spreadsheet${results.failed.length ? ` (${results.failed.length} row(s) skipped)` : ''}`,
+    });
+  }
+
+  res.json({ success: true, data: results });
+});
+
 // ADMIN: list all residents in their community. RESIDENT: not allowed (route-guarded).
 //
 // Paginated: with communities seeded to thousands of residents, returning
@@ -486,6 +628,7 @@ const exportResidentPayments = catchAsync(async (req, res) => {
 
 module.exports = {
   createResident,
+  bulkImportResidents,
   listResidents,
   getResident,
   getResidentSummary,

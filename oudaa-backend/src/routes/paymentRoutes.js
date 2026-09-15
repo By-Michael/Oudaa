@@ -24,7 +24,12 @@ router.get('/', authorize('ADMIN', 'RESIDENT'), ctrl.listPayments);
 // Resident self-serve: submit a bank txn ID and get verified instantly.
 router.post(
   '/self-verify',
-  authorize('RESIDENT'),
+  // Admins are also (usually) residents of their own community — see
+  // User.resident in schema.prisma — so an admin with a linked resident
+  // profile can self-verify a payment for their own unit too. The
+  // controller's own resident lookup (404 "Resident profile not found")
+  // is what actually blocks an admin who has no resident profile.
+  authorize('ADMIN', 'RESIDENT'),
   externalApiLimiter,
   validate(selfVerifyPaymentSchema),
   ctrl.selfVerifyPayment
@@ -33,7 +38,7 @@ router.post(
 // self-verify, get back a receiptUrl to send as part of that JSON body.
 router.post(
   '/self-verify/receipt',
-  authorize('RESIDENT'),
+  authorize('ADMIN', 'RESIDENT'),
   externalApiLimiter,
   upload.single('receipt'),
   ctrl.uploadSelfPaymentReceipt
@@ -54,7 +59,7 @@ router.get('/:id', authorize('ADMIN', 'RESIDENT'), validate(idParamSchema), ctrl
 // two permission models can't accidentally overlap.
 router.delete(
   '/:id/retract',
-  authorize('RESIDENT'),
+  authorize('ADMIN', 'RESIDENT'),
   validate(idParamSchema),
   ctrl.retractOwnPayment
 );

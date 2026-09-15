@@ -94,6 +94,7 @@ export const endpoints = {
   myOtpVerifyPhone: () => '/users/me/otp/verify-phone',
 
   residents: () => '/residents',
+  residentsBulkImport: () => '/residents/bulk-import',
   resident: (id) => `/residents/${id}`,
   residentSummary: (id) => `/residents/${id}/summary`,
   residentExport: (id) => `/residents/${id}/export`,

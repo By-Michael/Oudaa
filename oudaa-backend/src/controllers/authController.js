@@ -14,6 +14,10 @@ const { sendPasswordResetEmail, sendPasswordChangedEmail, sendCommunityWelcomeEm
 const { generateUniqueSlug, RESERVED_SLUGS } = require('../utils/slugify');
 
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
+// Minimum gap between reset emails to the same address — prevents mail-bombing
+// a user even when requests arrive from different IPs (which the IP-keyed
+// authLimiter alone can't stop). Matches the OTP request cooldown in userController.
+const FORGOT_PASSWORD_COOLDOWN_SECONDS = 60;
 // Where the frontend's reset-password page lives, e.g.
 // https://app.example.com/reset-password?token=... — matches the
 // CORS_ORIGIN pattern used elsewhere in this file for cross-service URLs.
@@ -67,6 +71,20 @@ const registerCommunity = catchAsync(async (req, res) => {
 
   const existing = await prisma.user.findUnique({ where: { email: admin.email } });
   if (existing) throw new AppError('Email already in use', 409);
+
+  // Prevent welcome-email spam: if a registration with this admin email was
+  // attempted within the last 60 seconds (e.g. a retry loop or duplicate
+  // form submission), reject early before creating any DB rows or sending
+  // another email. Uses the same cooldown window as the OTP request endpoint.
+  // Note: this check is best-effort (not wrapped in a transaction with the
+  // inserts below) but is sufficient to stop accidental and low-effort abuse.
+  const recentSignup = await prisma.user.findFirst({
+    where: {
+      email: admin.email,
+      createdAt: { gt: new Date(Date.now() - 60 * 1000) },
+    },
+  });
+  if (recentSignup) throw new AppError('A registration with this email was just submitted. Please wait a moment before trying again.', 429);
 
   // A requested subdomain must not collide with a platform route
   // (acme.oudaa.app is fine; app.oudaa.app or api.oudaa.app would shadow
@@ -336,6 +354,24 @@ const forgotPassword = catchAsync(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (user) {
+    // Per-email cooldown: even if requests arrive from different IPs (which
+    // the IP-keyed authLimiter alone can't stop), don't send another reset
+    // email within FORGOT_PASSWORD_COOLDOWN_SECONDS of the last one. Respond
+    // generically so the cooldown itself isn't revealed to unauthenticated callers.
+    const recentReset = await prisma.passwordResetToken.findFirst({
+      where: {
+        userId: user.id,
+        createdAt: { gt: new Date(Date.now() - FORGOT_PASSWORD_COOLDOWN_SECONDS * 1000) },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (recentReset) {
+      return res.json({
+        success: true,
+        message: 'If an account exists for that email, a password reset link has been sent.',
+      });
+    }
+
     // Raw token goes in the email link; only its hash is persisted (same
     // pattern as RefreshToken) so a DB leak can't be replayed as a valid
     // reset link.

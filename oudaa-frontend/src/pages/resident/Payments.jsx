@@ -283,14 +283,10 @@ export default function ResidentPayments() {
     }
   }
 
-  // An admin only needs blocking from resident self-serve actions if they
-  // genuinely have no resident profile to act as (see User.resident in
-  // schema.prisma) — plenty of admins ARE also a resident of their own
-  // community and can use this page for real, not just preview it.
-  // user.residentId is populated from that same link at login (see
-  // AuthContext), for any role, so it's the right signal here rather than
-  // role alone.
-  const isAdminPreview = user?.role === 'admin' && !user?.residentId
+  // Block resident-only actions if the user is a staff role (admin or
+  // committee) with no resident profile linked. Admins/committee members
+  // who ARE also residents (residentId is set) can use this page normally.
+  const isAdminPreview = ['admin', 'committee'].includes(user?.role) && !user?.residentId
 
   async function attemptSubmit() {
     setError('')

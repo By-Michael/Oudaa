@@ -248,7 +248,10 @@ const refresh = catchAsync(async (req, res) => {
     throw new AppError('Refresh token is no longer valid', 401);
   }
 
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    include: { resident: true, community: true },
+  });
   if (!user) throw new AppError('User no longer exists', 401);
 
   // Rotate: revoke the used token and issue a brand-new pair.
@@ -259,7 +262,7 @@ const refresh = catchAsync(async (req, res) => {
 
   const accessToken = await issueTokenPair(res, user);
 
-  res.json({ success: true, data: { accessToken } });
+  res.json({ success: true, data: { user: sanitizeUser(user), accessToken } });
 });
 
 const logout = catchAsync(async (req, res) => {

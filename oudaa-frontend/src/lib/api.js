@@ -32,6 +32,13 @@ function doRefresh() {
       .then(({ data }) => {
         const newToken = data.data.accessToken
         localStorage.setItem('oudaa_token', newToken)
+        // Persist the refreshed user object so residentId / community stay
+        // current after token rotation (e.g. when an admin gains a resident
+        // profile between sessions — the old cached user had no residentId).
+        if (data.data.user) {
+          localStorage.setItem('oudaa_user', JSON.stringify(data.data.user))
+          window.dispatchEvent(new CustomEvent('oudaa:user-refreshed', { detail: data.data.user }))
+        }
         return newToken
       })
       .finally(() => {

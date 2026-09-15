@@ -79,6 +79,17 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('oudaa:session-expired', handleExpired)
   }, [])
 
+  // Fired by api.js after a successful token refresh that also returns a
+  // fresh user object (e.g. an admin who gained a resident profile between
+  // sessions). Keeps residentId and community in sync without a page reload.
+  useEffect(() => {
+    function handleUserRefreshed(e) {
+      if (e.detail) setUser(normalizeUser(e.detail))
+    }
+    window.addEventListener('oudaa:user-refreshed', handleUserRefreshed)
+    return () => window.removeEventListener('oudaa:user-refreshed', handleUserRefreshed)
+  }, [])
+
   // On first load, if we already have an access token, re-validate it
   // against /auth/me instead of trusting the cached profile forever.
   useEffect(() => {

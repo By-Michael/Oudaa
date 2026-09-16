@@ -26,12 +26,12 @@ const upload = multer({
 const screenshotUpload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
-      return cb(new AppError('Only JPEG, PNG or WEBP screenshots are allowed', 400));
+    if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.mimetype)) {
+      return cb(new AppError('Only JPEG, PNG, WEBP or PDF files are allowed', 400));
     }
     cb(null, true);
   },
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB — PDFs can be larger than screenshots
 });
 
 // Profile picture uploads — images only, no PDFs.

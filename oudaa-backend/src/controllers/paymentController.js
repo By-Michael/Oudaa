@@ -4,7 +4,7 @@ const AppError = require('../utils/AppError');
 const { recordAudit } = require('../utils/audit');
 const { verifyBankTransaction, PROVIDERS_NEEDING_SUFFIX, PROVIDERS_NEEDING_PHONE } = require('../utils/bankVerification');
 const { parseReceiptImage } = require('../utils/ocrReceipt');
-const { extractCbeReferenceFromReceipt, isLikelyCbeReceiptLink } = require('../utils/receiptQrExtraction');
+const { parseReceiptImage } = require('../utils/ocrReceipt');
 const { saveReceiptFile } = require('../config/storage');
 const { sendNotificationEmail } = require('../utils/email');
 
@@ -138,9 +138,15 @@ async function resolveTarget(req) {
 }
 
 const createPayment = catchAsync(async (req, res) => {
-  const residentId = await resolveResidentId(req);
-  const target = await resolveTarget(req);
+  const residentId = await resolveResidentId(req);\n  const target = await resolveTarget(req);
   const isAdminRecording = req.user.role === 'ADMIN';
+
+  // A committee member recording a payment must supply the real transaction
+  // reference from the receipt — the reference is the verifiable proof of
+  // payment, so fabricating or omitting it defeats its purpose.
+  if (isAdminRecording && !req.body.transactionReference?.trim()) {
+    throw new AppError('Transaction reference is required when recording a payment manually.', 400);
+  }
 
   const payment = await prisma.payment.create({
     data: {
@@ -373,18 +379,24 @@ const uploadSelfPaymentReceipt = catchAsync(async (req, res) => {
 
   const { fileUrl } = await saveReceiptFile(req.file);
 
-  // Best-effort: try to pull the transaction reference straight off the
-  // receipt (QR code) so a CBE payment can eventually skip PENDING_REVIEW
-  // the same way other providers do. Stubbed today — see module header —
-  // so this always comes back null until that's implemented, and
-  // selfVerifyPayment already treats a missing reference as "queue for
-  // manual review", not an error.
-  const extracted = await extractCbeReferenceFromReceipt({
-    fileBuffer: req.file.buffer,
-    mimetype: req.file.mimetype,
-  }).catch(() => ({ reference: null, suffix: null }));
+  // OCR + Groq: extract the transaction ID and sender name from the
+  // uploaded screenshot or PDF. Groq vision reads images directly;
+  // for PDFs (and as a fallback) OCR.space extracts the text first,
+  // then Groq classifies the fields. Result is always best-effort —
+  // the resident can correct any field before submitting, and the
+  // verification engine does the authoritative check on submit.
+  let extractedTxnId = null;
+  let extractedName = null;
+  try {
+    const parsed = await parseReceiptImage(req.file.buffer, req.file.mimetype, req.file.originalname);
+    extractedTxnId = parsed.txnId || null;
+    extractedName = parsed.name || null;
+  } catch (err) {
+    // Non-fatal — the resident can fill in the fields manually.
+    console.error('[uploadReceipt] OCR/Groq extraction failed:', err.message);
+  }
 
-  res.json({ success: true, data: { receiptUrl: fileUrl, extractedReference: extracted.reference } });
+  res.json({ success: true, data: { receiptUrl: fileUrl, extractedTxnId, extractedName } });
 });
 
 // Map a CommunityPaymentMethod's PaymentProvider enum (schema.prisma, DB
@@ -540,31 +552,17 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   const targetLabel = fee ? `fee "${fee.name}"` : `fund "${fund.name}"`;
 
   // ---- CBE branch ----
-  // CBE dropped the old FT-reference + account-suffix scheme, so the
-  // resident never types a bank transaction ID for it. Instead we try to
-  // resolve a Veritas-verifiable reference from whatever they gave us —
-  // a pasted receipt link, or the QR code decoded off an uploaded
-  // screenshot/PDF (see receiptQrExtraction.js) — and, when we get one,
-  // verify it exactly like any other provider (shared logic below).
-  // Only when no reference could be resolved (QR unreadable, resident
-  // uploaded something without a QR, etc.) do we fall back to the old
-  // "queue for manual review" behavior.
+  // The resident types (or has auto-filled from OCR) their transaction ID
+  // in req.body.txnId. The verification engine (bankVerification.js) checks
+  // it against CBE's records on submit — no QR decoding needed here.
+  // receiptReference (set by the upload step's OCR extraction) is used as
+  // a fallback if txnId was not provided, for backwards-compat with older
+  // clients. If neither is present the payment queues for manual review.
   let cbeReference = null;
   if (isCbe) {
-    if (req.body.receiptReference && req.body.receiptReference.trim()) {
-      cbeReference = req.body.receiptReference.trim();
-    } else if (isLikelyCbeReceiptLink(receiptUrl)) {
-      // The resident pasted the CBE receipt link directly as receiptUrl
-      // (rather than uploading a file) — that link IS the reference.
-      cbeReference = receiptUrl.trim();
-    } else {
-      // Last resort: if a file was uploaded, its receiptUrl is our own
-      // storage URL, not a CBE link — try decoding the QR straight off
-      // that stored file so a client that skipped the
-      // /self-verify/receipt prefill step doesn't lose out.
-      const extracted = await extractCbeReferenceFromReceipt({ receiptLink: receiptUrl }).catch(() => null);
-      if (extracted?.reference) cbeReference = extracted.reference;
-    }
+    const txnId = req.body.txnId?.trim();
+    const receiptRef = req.body.receiptReference?.trim();
+    cbeReference = txnId || receiptRef || null;
   }
 
   if (isCbe && !cbeReference) {
@@ -583,7 +581,7 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
         status: 'PENDING_REVIEW',
         receiptUrl,
         verificationRaw: null,
-        reviewFlags: 'CBE receipt uploaded — could not automatically read a QR reference off it, needs manual review against the receipt.',
+        reviewFlags: 'CBE receipt uploaded — transaction ID could not be verified automatically. Needs manual review against the receipt.',
       },
       include: PAYMENT_INCLUDE,
     });
@@ -591,7 +589,7 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
       action: 'CREATE',
       entityType: 'Payment',
       entityId: payment.id,
-      description: `Self-verified CBE payment (${amount}) for ${targetLabel} — pending manual review (no QR reference found)`,
+      description: `Self-verified CBE payment (${amount}) for ${targetLabel} — pending manual review (transaction ID not provided or unverifiable)`,
     });
     notifyResidentOfSelfVerifyResult({
       toEmail: req.user.email,

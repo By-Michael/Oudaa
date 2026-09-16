@@ -82,13 +82,13 @@ const RECEIPT_FIELDS_SCHEMA = {
   },
 };
 
-const SYSTEM_PROMPT = `You extract structured fields from OCR text of a bank payment/transfer receipt or screenshot. The OCR text may be messy, have broken line breaks, or missing spaces.
+const SYSTEM_PROMPT = `You extract structured fields from OCR text of a bank payment/transfer receipt or screenshot. The OCR text may be messy, have broken line breaks, or missing spaces. This is most commonly a Commercial Bank of Ethiopia (CBE) receipt.
 
 Return ONLY a JSON object, no prose, no markdown fences, with exactly these keys:
 {
   "amount": number or null,       // the transferred amount, as a plain number, no currency symbol or commas
-  "name": string or null,         // the sender's / payer's name (not the recipient/bank staff)
-  "txnId": string or null,        // transaction ID / reference number / FT number
+  "name": string or null,         // the sender's / payer's full name (not the recipient, not bank staff)
+  "txnId": string or null,        // transaction ID / reference number / FT number (see rules below)
   "bankName": string or null,     // the bank or mobile money provider name
   "date": string or null          // transaction date, ISO 8601 (YYYY-MM-DD) if you can determine it, else null
 }
@@ -96,7 +96,12 @@ Return ONLY a JSON object, no prose, no markdown fences, with exactly these keys
 Rules:
 - If a field is not clearly present in the text, use null. Never guess or invent a value.
 - amount must be a plain JSON number (e.g. 1250.5), not a string, not formatted with commas or currency symbols.
-- Do not confuse a phone number, account number, or reference-looking noise for the transaction ID unless it is labeled as such or is the most plausible candidate.
+- txnId extraction rules (in priority order):
+    1. Look for a label like "Transaction ID", "Txn ID", "Reference", "Ref No", "FT No", "FT#" followed by an alphanumeric value — that labeled value IS the txnId.
+    2. CBE receipts commonly use FT-numbers: alphanumeric strings starting with "FT" followed by digits and letters (e.g. FT24219XXXXX, FT2024ABCD12). If you see one, it is almost certainly the txnId.
+    3. If no label and no FT-number, look for a standalone alphanumeric string of 8–20 characters that mixes letters and digits and appears in isolation (not embedded in a sentence), which is plausibly a bank reference.
+    4. Never use account numbers (usually pure digits, 10–16 digits), phone numbers (10–12 digits, often starting with 09 or +251), or amounts as the txnId.
+- name must be the sender's / payer's full name. On CBE receipts this is often labeled "Sender", "From", "Account Name", or "Name". Do not use the recipient's name or the teller/branch name.
 - Respond with the JSON object only.`;
 
 // Defensive normalization — never trust the model to perfectly follow the
@@ -218,13 +223,13 @@ const GROQ_VISION_MODEL = resolveModel(
   'GROQ_VISION_MODEL'
 );
 
-const VISION_SYSTEM_PROMPT = `You extract structured fields from an image of a bank payment/transfer receipt or screenshot.
+const VISION_SYSTEM_PROMPT = `You extract structured fields from an image of a bank payment/transfer receipt or screenshot. This is most commonly a Commercial Bank of Ethiopia (CBE) receipt.
 
 Return ONLY a JSON object, no prose, no markdown fences, with exactly these keys:
 {
   "amount": number or null,       // the transferred amount, as a plain number, no currency symbol or commas
-  "name": string or null,         // the sender's / payer's name (not the recipient/bank staff)
-  "txnId": string or null,        // transaction ID / reference number / FT number
+  "name": string or null,         // the sender's / payer's full name (not the recipient, not bank staff)
+  "txnId": string or null,        // transaction ID / reference number / FT number (see rules below)
   "bankName": string or null,     // the bank or mobile money provider name
   "date": string or null          // transaction date, ISO 8601 (YYYY-MM-DD) if you can determine it, else null
 }
@@ -232,7 +237,12 @@ Return ONLY a JSON object, no prose, no markdown fences, with exactly these keys
 Rules:
 - If a field is not clearly present in the image, use null. Never guess or invent a value.
 - amount must be a plain JSON number (e.g. 1250.5), not a string, not formatted with commas or currency symbols.
-- Do not confuse a phone number, account number, or reference-looking noise for the transaction ID unless it is labeled as such or is the most plausible candidate.
+- txnId extraction rules (in priority order):
+    1. Look for a label like "Transaction ID", "Txn ID", "Reference", "Ref No", "FT No", "FT#" followed by an alphanumeric value — that labeled value IS the txnId.
+    2. CBE receipts commonly use FT-numbers: alphanumeric strings starting with "FT" followed by digits and letters (e.g. FT24219XXXXX, FT2024ABCD12). If you see one, it is almost certainly the txnId.
+    3. If no label and no FT-number, look for a standalone alphanumeric string of 8–20 characters that mixes letters and digits and appears in isolation, which is plausibly a bank reference.
+    4. Never use account numbers (usually pure digits, 10–16 digits), phone numbers (10–12 digits starting with 09 or +251), or amounts as the txnId.
+- name must be the sender's / payer's full name. On CBE receipts this is often labeled "Sender", "From", "Account Name", or "Name". Do not use the recipient's name or the teller/branch name.
 - Respond with the JSON object only.`;
 
 /**

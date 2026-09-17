@@ -88,6 +88,9 @@ export const endpoints = {
   // Note: login body uses { identifier, password } — identifier can be an
   // email address or a phone number.
   register: () => '/auth/register-community',
+  // GET with ?email= — used by the signup wizard to check availability
+  // live, before final submit. Public, unauthenticated, rate-limited.
+  checkEmail: () => '/auth/check-email',
   me: () => '/auth/me',
   logout: () => '/auth/logout',
   refresh: () => '/auth/refresh',

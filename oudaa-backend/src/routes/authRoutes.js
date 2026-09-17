@@ -34,6 +34,22 @@ router.post(
   validate(registerCommunitySchema),
   authController.registerCommunity
 );
+
+// Public, unauthenticated — the signup wizard calls this as each email
+// field is filled in (admin's own, and each committee member's) so a
+// taken email surfaces immediately instead of only after the final
+// submit. Rate-limited more generously than authLimiter since a single
+// person filling out a multi-step form can legitimately trigger several
+// of these (one per committee member), but still capped since this is a
+// (mild, unavoidable) user-enumeration surface.
+const checkEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 40 : 5000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts, please try again later' },
+});
+router.get('/check-email', checkEmailLimiter, authController.checkEmailAvailability);
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/refresh', authLimiter, validate(refreshSchema), authController.refresh);
 router.post('/logout', authController.logout);

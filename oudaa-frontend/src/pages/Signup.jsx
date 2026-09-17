@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -86,6 +86,60 @@ const INITIAL_DATA = {
 }
 
 /* ------------------------------------------------------------------ */
+/* Live email-availability check                                       */
+/* ------------------------------------------------------------------ */
+
+const EMAIL_RE = /^\S+@\S+\.\S+$/
+
+/**
+ * Debounced "does this email already have an account" check against
+ * GET /auth/check-email. Skips the network call entirely until the input
+ * looks like a real email, and ignores any response that's been
+ * superseded by a newer edit — so fixing a typo right after a "taken"
+ * result can't leave a stale error on screen.
+ */
+function useEmailAvailability(rawEmail) {
+  const [status, setStatus] = useState('idle') // idle | checking | available | taken | error
+  const requestIdRef = useRef(0)
+
+  useEffect(() => {
+    const email = rawEmail.trim().toLowerCase()
+    if (!EMAIL_RE.test(email)) {
+      setStatus('idle')
+      return
+    }
+    const requestId = ++requestIdRef.current
+    setStatus('checking')
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get(endpoints.checkEmail(), { params: { email } })
+        if (requestIdRef.current !== requestId) return // a newer edit already superseded this check
+        setStatus(data?.data?.available ? 'available' : 'taken')
+      } catch {
+        if (requestIdRef.current !== requestId) return
+        // Network hiccup or rate limit — don't block the wizard on this;
+        // the real duplicate check still runs server-side on final submit.
+        setStatus('error')
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [rawEmail])
+
+  return status
+}
+
+/** Renders under an email input: a client-side error takes priority over
+ * the async availability result, since there's no point telling someone
+ * "checking availability" for something that isn't a valid email yet. */
+function EmailStatusMessage({ status, syncError }) {
+  if (syncError) return <p className="mt-1.5 text-xs text-red-500">{syncError}</p>
+  if (status === 'checking') return <p className="mt-1.5 text-xs text-ink-400">Checking availability…</p>
+  if (status === 'taken') return <p className="mt-1.5 text-xs text-red-500">This email is already registered to another account.</p>
+  if (status === 'error') return <p className="mt-1.5 text-xs text-ink-400">Couldn't check right now — we'll verify this when you submit.</p>
+  return null
+}
+
+/* ------------------------------------------------------------------ */
 /* Small building blocks                                               */
 /* ------------------------------------------------------------------ */
 
@@ -143,14 +197,19 @@ function Stepper({ step }) {
 /* Step 1 — Account                                                     */
 /* ------------------------------------------------------------------ */
 
-function StepAccount({ data, update, errors }) {
+function StepAccount({ data, update, errors, onEmailStatus }) {
   const [showPw, setShowPw] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const emailStatus = useEmailAvailability(data.email)
+
+  useEffect(() => {
+    onEmailStatus('admin', emailStatus)
+  }, [emailStatus, onEmailStatus])
 
   return (
     <div>
       <SectionHeading
-        eyebrow="Step 1 of 4"
+        eyebrow="Step 1 of 5"
         title="Create your admin account"
         body="This is you, the committee member setting things up. You'll manage the community from here."
       />
@@ -175,6 +234,7 @@ function StepAccount({ data, update, errors }) {
               value={data.email}
               onChange={(e) => update({ email: e.target.value })}
             />
+            <EmailStatusMessage status={emailStatus} syncError={errors.email} />
           </div>
           <div>
             <label className="label">Phone number<RequiredMark /></label>
@@ -255,7 +315,7 @@ function StepCommunity({ data, update, errors }) {
   return (
     <div>
       <SectionHeading
-        eyebrow="Step 2 of 4"
+        eyebrow="Step 2 of 5"
         title="Tell us about your community"
         body="This sets up the shared profile every resident and committee member will see."
       />
@@ -335,7 +395,7 @@ function StepFees({ data, update, errors }) {
   return (
     <div>
       <SectionHeading
-        eyebrow="Step 3 of 4"
+        eyebrow="Step 3 of 5"
         title="Set up your first fees"
         body="The fees residents will pay. You can add, edit or remove fees later from the dashboard."
       />
@@ -415,7 +475,62 @@ function StepFees({ data, update, errors }) {
 /* Step 4 — Committee members                                          */
 /* ------------------------------------------------------------------ */
 
-function StepCommittee({ data, update }) {
+function CommitteeMemberRow({ member, index, errors, updateMember, removeMember, onEmailStatus }) {
+  const emailStatus = useEmailAvailability(member.email)
+
+  useEffect(() => {
+    onEmailStatus(member.id, emailStatus)
+    // Clear this row's status out of the parent's map once it's removed,
+    // so a stale "taken" from a deleted row can never block Continue.
+    return () => onEmailStatus(member.id, 'idle')
+  }, [emailStatus, member.id, onEmailStatus])
+
+  return (
+    <div className="rounded-xl border border-ink-200 bg-ink-50 p-4 space-y-3 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-ink-700 dark:text-ink-200">Member {index + 1}</span>
+        <button type="button" onClick={() => removeMember(member.id)} className="text-ink-400 hover:text-red-500 transition-colors">
+          <Trash2 size={15} />
+        </button>
+      </div>
+      <div>
+        <label className="label">Full name<RequiredMark /></label>
+        <input
+          className="input"
+          placeholder="Abebe Kebede"
+          value={member.fullName}
+          onChange={(e) => updateMember(member.id, { fullName: e.target.value })}
+        />
+        {errors[`member_${index}_name`] && <p className="mt-1.5 text-xs text-red-500">{errors[`member_${index}_name`]}</p>}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="label">Email address<RequiredMark /></label>
+          <input
+            type="email"
+            className="input"
+            placeholder="member@community.org"
+            value={member.email}
+            onChange={(e) => updateMember(member.id, { email: e.target.value })}
+          />
+          <EmailStatusMessage status={emailStatus} syncError={errors[`member_${index}_email`]} />
+        </div>
+        <div>
+          <label className="label">Phone number</label>
+          <input
+            type="tel"
+            className="input"
+            placeholder="+251 9xx xxx xxx"
+            value={member.phone}
+            onChange={(e) => updateMember(member.id, { phone: e.target.value })}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StepCommittee({ data, update, errors, onEmailStatus }) {
   function addMember() {
     update({ committeeMembers: [...data.committeeMembers, makeCommitteeMember()] })
   }
@@ -435,45 +550,15 @@ function StepCommittee({ data, update }) {
       />
       <div className="space-y-4">
         {data.committeeMembers.map((member, i) => (
-          <div key={member.id} className="rounded-xl border border-ink-200 bg-ink-50 p-4 space-y-3 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-ink-700 dark:text-ink-200">Member {i + 1}</span>
-              <button type="button" onClick={() => removeMember(member.id)} className="text-ink-400 hover:text-red-500 transition-colors">
-                <Trash2 size={15} />
-              </button>
-            </div>
-            <div>
-              <label className="label">Full name<RequiredMark /></label>
-              <input
-                className="input"
-                placeholder="Abebe Kebede"
-                value={member.fullName}
-                onChange={(e) => updateMember(member.id, { fullName: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="label">Email address<RequiredMark /></label>
-                <input
-                  type="email"
-                  className="input"
-                  placeholder="member@community.org"
-                  value={member.email}
-                  onChange={(e) => updateMember(member.id, { email: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label">Phone number</label>
-                <input
-                  type="tel"
-                  className="input"
-                  placeholder="+251 9xx xxx xxx"
-                  value={member.phone}
-                  onChange={(e) => updateMember(member.id, { phone: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
+          <CommitteeMemberRow
+            key={member.id}
+            member={member}
+            index={i}
+            errors={errors}
+            updateMember={updateMember}
+            removeMember={removeMember}
+            onEmailStatus={onEmailStatus}
+          />
         ))}
 
         <button type="button" onClick={addMember} className="btn-secondary gap-1.5 text-sm w-full">
@@ -581,7 +666,7 @@ function StepReview({ data, onEdit, submitError }) {
 /* Success screen                                                      */
 /* ------------------------------------------------------------------ */
 
-function SuccessScreen() {
+function SuccessScreen({ warnings = [] }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   return (
@@ -597,6 +682,17 @@ function SuccessScreen() {
       <p className="mt-2 text-ink-500 dark:text-ink-400">
         You're already signed in here, so you can head straight to your dashboard to add residents, connect a payment account, and start collecting fees.
       </p>
+      {warnings.length > 0 && (
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+          <p className="font-semibold">Your community is live, but a couple of things need a retry:</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-amber-700/80 dark:text-amber-300/70">You can retry these from the dashboard.</p>
+        </div>
+      )}
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <button type="button" onClick={() => navigate(user?.communitySlug ? `/${user.communitySlug}/admin` : '/admin')} className="btn-primary px-8 py-3">
           Go to dashboard <ArrowRight size={16} />
@@ -654,14 +750,29 @@ export default function Signup() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [launchedSlug, setLaunchedSlug] = useState(null)
+  const [launchWarnings, setLaunchWarnings] = useState([])
+  // Keyed by 'admin' or a committee member's row id -> 'idle' | 'checking' |
+  // 'available' | 'taken' | 'error'. Fed by each email field's live
+  // availability check (see useEmailAvailability) so Continue can be
+  // blocked on a taken email before the person ever reaches final submit.
+  const [emailStatus, setEmailStatusState] = useState({})
   const { adoptSession } = useAuth()
+
+  const setEmailStatus = useCallback((key, status) => {
+    setEmailStatusState((prev) => (prev[key] === status ? prev : { ...prev, [key]: status }))
+  }, [])
 
   function update(patch) {
     setData((prev) => ({ ...prev, ...patch }))
   }
 
   const errors = useMemo(() => validateStep(step, data), [step, data])
-  const canAdvance = Object.keys(errors).length === 0
+  const asyncBlocked = useMemo(() => {
+    if (step === 1) return ['checking', 'taken'].includes(emailStatus.admin)
+    if (step === 4) return data.committeeMembers.some((m) => ['checking', 'taken'].includes(emailStatus[m.id]))
+    return false
+  }, [step, emailStatus, data.committeeMembers])
+  const canAdvance = Object.keys(errors).length === 0 && !asyncBlocked
 
   function goNext() {
     if (!canAdvance) return
@@ -714,18 +825,26 @@ export default function Signup() {
           })
         )
       )
-      const failedCount = results.filter((r) => r.status === 'rejected').length
-      if (failedCount > 0 && failedCount === validFees.length) {
-        setSubmitError(
-          `Your community was created, but the fees couldn't be saved. You can add them from the dashboard's Fees page.`
-        )
+      // Collected here rather than via setSubmitError: submitError is only
+      // rendered on the Review step, which unmounts the moment we show the
+      // success screen below — a warning set into it after this point would
+      // never actually be seen. warnings accumulates across both fees and
+      // invites and is handed to SuccessScreen instead.
+      const warnings = []
+      const failedFeeCount = results.filter((r) => r.status === 'rejected').length
+      if (failedFeeCount > 0 && failedFeeCount === validFees.length) {
+        warnings.push(`Your fees couldn't be saved — add them from the dashboard's Fees page.`)
       }
 
       // Invite each committee member — best-effort, same as fees above.
       // A failed invite doesn't undo the community creation; the admin can
-      // retry from the dashboard.
+      // retry from the dashboard. Unlike before, a failure here is no
+      // longer silently swallowed: each one is reported by the specific
+      // email that failed and why (e.g. already registered elsewhere),
+      // since with more than one invitee a generic "email already in use"
+      // doesn't tell the admin which row to fix.
       const validMembers = data.committeeMembers.filter((m) => m.fullName.trim() && m.email.trim())
-      await Promise.allSettled(
+      const inviteResults = await Promise.allSettled(
         validMembers.map((m) =>
           api.post(endpoints.inviteCommitteeMember(), {
             fullName: m.fullName.trim(),
@@ -734,6 +853,13 @@ export default function Signup() {
           })
         )
       )
+      inviteResults.forEach((r, i) => {
+        if (r.status !== 'rejected') return
+        const email = validMembers[i].email.trim()
+        const msg = r.reason?.response?.data?.message || r.reason?.message || 'Something went wrong sending the invite.'
+        warnings.push(`Couldn't invite ${email}: ${msg}`)
+      })
+      if (warnings.length) setLaunchWarnings(warnings)
 
       setLaunchedSlug(community.slug)
     } catch (e) {
@@ -760,10 +886,10 @@ export default function Signup() {
           <>
             <Stepper step={step} />
             <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-card sm:p-8 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
-              {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
+              {step === 1 && <StepAccount data={data} update={update} errors={errors} onEmailStatus={setEmailStatus} />}
               {step === 2 && <StepCommunity data={data} update={update} errors={errors} />}
               {step === 3 && <StepFees data={data} update={update} errors={errors} />}
-              {step === 4 && <StepCommittee data={data} update={update} />}
+              {step === 4 && <StepCommittee data={data} update={update} errors={errors} onEmailStatus={setEmailStatus} />}
               {step === 5 && <StepReview data={data} onEdit={setStep} submitError={submitError} />}
 
               <div className="mt-8 flex items-center justify-between border-t border-ink-200 pt-6 dark:border-[#2e2e2e]">
@@ -784,7 +910,7 @@ export default function Signup() {
           </>
         )}
 
-        {launchedSlug && <SuccessScreen />}
+        {launchedSlug && <SuccessScreen warnings={launchWarnings} />}
       </div>
     </main>
   )

@@ -256,9 +256,9 @@ function PaymentForm({ form, setForm, fees, projects, residents, showResidentPic
       </div>
 
       <div>
-        <label className="label">Transaction reference <span className="text-ink-400 font-normal normal-case">(optional)</span></label>
+        <label className="label">Transaction reference</label>
         <input
-          className="input font-mono" placeholder="e.g. FT24219XXXXX — leave blank to auto-generate"
+          className="input font-mono" placeholder="e.g. FT24219XXXXX"
           value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })}
         />
       </div>
@@ -484,9 +484,13 @@ export default function Payments() {
 
   function submit(e) {
     e.preventDefault()
+    if (!form.reference.trim()) {
+      notify('Enter a transaction reference — this is the proof of payment used to verify the record.', 'error')
+      return
+    }
     setSaving(true)
     const fee = fees.find((f) => f.id === form.feeId)
-    addPayment({ ...form, amount: Number(form.amount) || fee?.amount || 0, reference: form.reference || `TRX-${Math.floor(Math.random() * 90000 + 10000)}` })
+    addPayment({ ...form, amount: Number(form.amount) || fee?.amount || 0, reference: form.reference.trim() })
       .then(() => { setModal(false); setForm(empty); notify('Payment recorded.', 'success') })
       .catch((err) => notify(err?.response?.data?.message || err.message))
       .finally(() => setSaving(false))

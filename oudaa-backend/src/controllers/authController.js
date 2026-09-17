@@ -68,9 +68,14 @@ function sanitizeUser(user) {
  */
 const registerCommunity = catchAsync(async (req, res) => {
   const { community, admin } = req.body;
+  // Normalize casing before both the lookup and the create below — without
+  // this, "Admin@x.com" and "admin@x.com" are treated as different users by
+  // the duplicate check but the same user at login (login() normalizes),
+  // so a case-mismatched duplicate would slip past this check entirely.
+  const adminEmail = admin.email.trim().toLowerCase();
 
-  const existing = await prisma.user.findUnique({ where: { email: admin.email } });
-  if (existing) throw new AppError('Email already in use', 409);
+  const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (existing) throw new AppError(`The email "${adminEmail}" is already registered. Try logging in instead.`, 409);
 
   // Prevent welcome-email spam: if a registration with this admin email was
   // attempted within the last 60 seconds (e.g. a retry loop or duplicate
@@ -80,7 +85,7 @@ const registerCommunity = catchAsync(async (req, res) => {
   // inserts below) but is sufficient to stop accidental and low-effort abuse.
   const recentSignup = await prisma.user.findFirst({
     where: {
-      email: admin.email,
+      email: adminEmail,
       createdAt: { gt: new Date(Date.now() - 60 * 1000) },
     },
   });
@@ -104,7 +109,7 @@ const registerCommunity = catchAsync(async (req, res) => {
       data: {
         communityId: createdCommunity.id,
         fullName: admin.fullName,
-        email: admin.email,
+        email: adminEmail,
         passwordHash,
         role: 'ADMIN',
       },
@@ -436,6 +441,32 @@ const resetPassword = catchAsync(async (req, res) => {
   res.json({ success: true, message: 'Password has been reset. Please sign in with your new password.' });
 });
 
+// Very light email-format check — good enough to avoid a wasted DB round
+// trip on obviously-malformed input; the real validation still happens in
+// authValidators.js / here where it matters, this is just an early guard.
+const EMAIL_RE = /^\S+@\S+\.\S+$/;
+
+/**
+ * Public, unauthenticated check for whether an email already has an
+ * account — lets the signup wizard tell someone their email (or a
+ * committee member's) is taken while they're still filling out the form,
+ * instead of only finding out after they submit the whole thing.
+ *
+ * Deliberately returns only a boolean, never account details, but any
+ * "does this email exist" endpoint is inherently a user-enumeration
+ * surface — registerCommunity's 409 already exposes the same fact, so
+ * this doesn't introduce a new leak, but it is rate-limited (see
+ * authRoutes.js) to make bulk-checking a list of emails impractical.
+ */
+const checkEmailAvailability = catchAsync(async (req, res) => {
+  const raw = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
+  if (!raw || !EMAIL_RE.test(raw)) {
+    throw new AppError('A valid email address is required', 400);
+  }
+  const existing = await prisma.user.findUnique({ where: { email: raw } });
+  res.json({ success: true, data: { available: !existing } });
+});
+
 /**
  * Invite a new committee member (ADMIN role) to the caller's community.
  * Creates the user account with a random unusable password hash, then
@@ -443,13 +474,14 @@ const resetPassword = catchAsync(async (req, res) => {
  * Authenticated — only existing admins of the same community can call this.
  */
 const inviteCommitteeMember = catchAsync(async (req, res) => {
-  const { fullName, email, phone } = req.body;
+  const { fullName, phone } = req.body;
+  const email = req.body.email?.trim().toLowerCase();
 
   if (!fullName?.trim()) throw new AppError('Full name is required', 400);
-  if (!email?.trim()) throw new AppError('Email is required', 400);
+  if (!email) throw new AppError('Email is required', 400);
 
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw new AppError('Email already in use', 409);
+  if (existing) throw new AppError(`The email "${email}" is already registered to another account.`, 409);
 
   // Create the account with an unusable random password — the invite email
   // contains a reset link, so they set their own password on first access.
@@ -459,7 +491,7 @@ const inviteCommitteeMember = catchAsync(async (req, res) => {
     data: {
       communityId: req.communityId,
       fullName: fullName.trim(),
-      email: email.trim().toLowerCase(),
+      email,
       passwordHash: tempHash,
       role: 'ADMIN',
       ...(phone?.trim() ? {} : {}), // phone lives on Resident; stored in invite email only
@@ -498,6 +530,7 @@ const inviteCommitteeMember = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  checkEmailAvailability,
   registerCommunity,
   login,
   refresh,

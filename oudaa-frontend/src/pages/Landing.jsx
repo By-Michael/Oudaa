@@ -47,11 +47,11 @@ import { useTheme } from '../context/ThemeContext'
 const C = {
   light: {
     bg: '#eef1f9', fg: '#191d2e', card: '#ffffff', primary: '#0f9e7a',
-    accent: '#00a8d1', secondary: '#0a63d8', border: '#d7dde9', muted: '#666f94',
+    accent: '#00a8d1', secondary: '#0a63d8', border: '#d7dde9', muted: '#4d557a',
   },
   dark: {
     bg: '#0b1120', fg: '#dfe4f2', card: '#131b30', primary: '#01df9e',
-    accent: '#00b6fc', secondary: '#2f7dff', border: '#263255', muted: '#8d97c2',
+    accent: '#00b6fc', secondary: '#2f7dff', border: '#263255', muted: '#a9b2db',
   },
 }
 
@@ -59,7 +59,7 @@ function SectionHeading({ title, body }) {
   return (
     <div className="mb-16 space-y-4 text-center">
       <h2 className="text-4xl font-semibold text-balance text-[#191d2e] dark:text-[#f2f4fb] md:text-5xl">{title}</h2>
-      <p className="mx-auto max-w-2xl text-lg text-[#666f94] dark:text-[#8d97c2]">{body}</p>
+      <p className="mx-auto max-w-2xl text-lg text-[#4d557a] dark:text-[#a9b2db]">{body}</p>
     </div>
   )
 }
@@ -110,7 +110,7 @@ function Navbar() {
 
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#d7dde9] bg-[#eef1f9]/80 backdrop-blur-md dark:border-[#01df9e]/30 dark:bg-[#0b1120]/80">
-      <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-16">
         <div className="flex h-20 items-center justify-between">
           <a href="#top" className="flex items-center gap-2">
             <img src="/oudaa-logo-full.png" alt="Oudaa logo" className="h-9 w-auto object-contain" />
@@ -134,7 +134,7 @@ function Navbar() {
 
           <div className="hidden items-center gap-4 md:flex">
             <Link to="/signup">
-              <button className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#0f9e7a] to-[#00a8d1] px-6 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg dark:from-[#01df9e] dark:to-[#00b6fc] dark:text-[#0b1120]">
+              <button className="inline-flex items-center gap-2 rounded-full border border-[#0f9e7a] px-5 py-2 text-sm font-semibold text-[#0f9e7a] transition-colors hover:bg-[#0f9e7a]/10 dark:border-[#01df9e] dark:text-[#01df9e] dark:hover:bg-[#01df9e]/10">
                 <Users className="h-4 w-4" />
                 Create Community
               </button>
@@ -198,37 +198,72 @@ function Navbar() {
 /* Dashboard preview card (hero)                                      */
 /* ----------------------------------------------------------------- */
 function DashboardPreview() {
+  const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
+  const values = [4000, 6000, 4500, 7000, 5500, 7500, 5000]
+  const maxVal = 8000
   return (
     <div className="relative">
-      <div className="relative overflow-hidden rounded-2xl border border-[#0f9e7a] bg-white p-6 shadow-lg dark:border-[#01df9e] dark:bg-[#131b30]">
-        <div className="space-y-6">
+      <div className="relative overflow-hidden rounded-2xl border border-[#d7dde9] bg-white/90 shadow-2xl backdrop-blur-sm dark:border-[#263255] dark:bg-[#131b30]/90">
+        {/* App/browser chrome header for realism */}
+        <div className="flex items-center gap-1.5 border-b border-[#d7dde9] bg-[#eef1f9] px-4 py-2.5 dark:border-[#263255] dark:bg-[#0b1120]/60">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+          <span className="ml-3 text-[11px] text-[#4d557a] dark:text-[#a9b2db]">app.oudaa.com/dashboard</span>
+        </div>
+
+        <div className="space-y-6 p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-[#191d2e] dark:text-[#f2f4fb]">Community Dashboard</h3>
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 animate-pulse rounded-full bg-[#0f9e7a] dark:bg-[#01df9e]" />
-              <span className="text-xs text-[#666f94] dark:text-[#8d97c2]">Live</span>
+              <span className="text-xs text-[#4d557a] dark:text-[#a9b2db]">Live</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-[#0f9e7a]/20 bg-[#eef1f9]/50 p-3 transition hover:border-[#0f9e7a]/40 dark:border-[#01df9e]/20 dark:bg-[#0b1120]/50 dark:hover:border-[#01df9e]/40">
-              <p className="mb-1 text-xs text-[#666f94] dark:text-[#8d97c2]">Fund Balance</p>
+              <p className="mb-1 text-xs text-[#4d557a] dark:text-[#a9b2db]">Fund Balance</p>
               <p className="text-2xl font-bold text-[#0f9e7a] dark:text-[#01df9e]">$48,210</p>
             </div>
-            <div className="rounded-lg border border-[#00a8d1]/20 bg-[#eef1f9]/50 p-3 transition hover:border-[#00a8d1]/40 dark:border-[#00b6fc]/20 dark:bg-[#0b1120]/50 dark:hover:border-[#00b6fc]/40">
-              <p className="mb-1 text-xs text-[#666f94] dark:text-[#8d97c2]">Dues Collected</p>
-              <p className="text-2xl font-bold text-[#00a8d1] dark:text-[#00b6fc]">2,847</p>
+            <div className="rounded-lg border border-[#0f9e7a]/20 bg-[#eef1f9]/50 p-3 transition hover:border-[#0f9e7a]/40 dark:border-[#01df9e]/20 dark:bg-[#0b1120]/50 dark:hover:border-[#01df9e]/40">
+              <p className="mb-1 text-xs text-[#4d557a] dark:text-[#a9b2db]">Dues Collected</p>
+              <p className="text-2xl font-bold text-[#0f9e7a] dark:text-[#01df9e]">2,847</p>
             </div>
           </div>
 
-          <div className="flex h-32 items-end justify-center gap-2 rounded-lg border border-[#d7dde9] bg-[#eef1f9]/30 p-3 dark:border-slate-700/50 dark:bg-[#0b1120]/30">
-            {[40, 60, 45, 70, 55, 75, 50].map((h, i) => (
-              <div
-                key={i}
-                className="flex-1 rounded-sm bg-gradient-to-t from-[#0f9e7a] to-[#0f9e7a]/50 opacity-70 transition hover:opacity-100 dark:from-[#01df9e] dark:to-[#01df9e]/50"
-                style={{ height: `${h}%` }}
-              />
-            ))}
+          <div className="rounded-lg border border-[#d7dde9] bg-[#eef1f9]/30 p-3 dark:border-slate-700/50 dark:bg-[#0b1120]/30">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-[#4b5375] dark:text-slate-300">Fund Balance — Last 7 Months</p>
+              <p className="text-xs text-[#4d557a] dark:text-[#a9b2db]">in $000s</p>
+            </div>
+            <div className="relative h-28">
+              {/* Gridlines */}
+              <div className="absolute inset-0 flex flex-col justify-between">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="w-full border-t border-dashed border-[#d7dde9] dark:border-slate-700/40" />
+                ))}
+              </div>
+              {/* Bars */}
+              <div className="relative flex h-full items-end justify-between gap-2">
+                {values.map((v, i) => (
+                  <div key={i} className="group/bar flex flex-1 flex-col items-center justify-end">
+                    <span className="mb-1 text-[10px] font-medium text-[#4b5375] opacity-0 transition group-hover/bar:opacity-100 dark:text-slate-300">
+                      ${(v / 1000).toFixed(1)}k
+                    </span>
+                    <div
+                      className="w-full rounded-t-sm bg-gradient-to-t from-[#0f9e7a] to-[#0f9e7a]/60 transition group-hover/bar:from-[#00a8d1] group-hover/bar:to-[#00a8d1]/60 dark:from-[#01df9e] dark:to-[#01df9e]/60"
+                      style={{ height: `${(v / maxVal) * 100}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-1.5 flex justify-between border-t border-[#d7dde9] pt-1.5 dark:border-slate-700/40">
+              {months.map((m) => (
+                <span key={m} className="flex-1 text-center text-[10px] text-[#4d557a] dark:text-[#a9b2db]">{m}</span>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -237,7 +272,7 @@ function DashboardPreview() {
               {[
                 { icon: CheckCircle2, label: 'Bank payment verified — Unit 12B', color: 'text-[#0f9e7a] dark:text-[#01df9e]' },
                 { icon: Landmark, label: 'New capital project funded', color: 'text-[#00a8d1] dark:text-[#00b6fc]' },
-                { icon: Wallet, label: 'Expense logged to ledger', color: 'text-[#666f94] dark:text-slate-400' },
+                { icon: Wallet, label: 'Expense logged to ledger', color: 'text-[#4d557a] dark:text-slate-400' },
               ].map((item, i) => (
                 <div
                   key={i}
@@ -265,7 +300,7 @@ function Hero() {
       <div className="pointer-events-none absolute left-10 top-20 h-32 w-32 rounded-full bg-[#00a8d1]/10 blur-3xl dark:bg-[#00b6fc]/10" />
       <div className="pointer-events-none absolute bottom-40 right-20 h-40 w-40 rounded-full bg-[#0a63d8]/10 blur-3xl dark:bg-[#2f7dff]/10" />
 
-      <div className="relative z-20 mx-auto w-full max-w-[1600px] px-6 lg:px-10">
+      <div className="relative z-20 mx-auto w-full max-w-[1400px] px-6 lg:px-12 xl:px-16">
         <div className="grid items-center gap-16 md:grid-cols-2">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 text-[#00a8d1]/80 dark:text-[#00b6fc]/80">
@@ -275,11 +310,11 @@ function Hero() {
 
             <div className="space-y-6">
               <h1 className="text-balance text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                <span className="bg-gradient-to-r from-[#0f9e7a] via-[#00a8d1] to-[#0a63d8] bg-clip-text text-transparent dark:from-[#01df9e] dark:via-[#00b6fc] dark:to-[#2f7dff]">
+                <span className="bg-gradient-to-r from-[#0f9e7a] to-[#00a8d1] bg-clip-text text-transparent dark:from-[#01df9e] dark:to-[#00b6fc]">
                   Run Your Community's Funds With Full Transparency
                 </span>
               </h1>
-              <p className="text-xl leading-relaxed text-[#666f94] dark:text-[#8d97c2]">
+              <p className="text-xl leading-relaxed text-[#4d557a] dark:text-[#a9b2db]">
                 Oudaa replaces cash boxes, WhatsApp groups, and spreadsheets with a single, auditable
                 platform for dues, shared funds, capital projects, and committee governance.
               </p>
@@ -287,18 +322,18 @@ function Hero() {
 
             <div className="flex flex-col gap-4 pt-4 sm:flex-row">
               <Link to="/signup">
-                <button className="rounded-full bg-[#191d2e] px-8 py-3 font-semibold text-white hover:bg-[#191d2e]/90 dark:bg-[#dfe4f2] dark:text-[#0b1120] dark:hover:bg-[#dfe4f2]/90">
+                <button className="rounded-full bg-gradient-to-r from-[#0f9e7a] to-[#00a8d1] px-8 py-3 font-semibold text-white shadow-md hover:shadow-lg dark:from-[#01df9e] dark:to-[#00b6fc] dark:text-[#0b1120]">
                   Create Community
                 </button>
               </Link>
               <a href="#solution">
-                <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-gradient-to-r from-[#0f9e7a] to-[#00a8d1] px-8 py-3 text-sm font-semibold text-white hover:shadow-lg dark:from-[#01df9e] dark:to-[#00b6fc] dark:text-[#0b1120]">
+                <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[#191d2e]/20 bg-transparent px-8 py-3 text-sm font-semibold text-[#191d2e] transition hover:border-[#0f9e7a] hover:text-[#0f9e7a] dark:border-[#dfe4f2]/20 dark:text-[#dfe4f2] dark:hover:border-[#01df9e] dark:hover:text-[#01df9e]">
                   Learn More
                 </button>
               </a>
             </div>
 
-            <div className="text-sm text-[#666f94] dark:text-[#8d97c2]">
+            <div className="text-sm text-[#4d557a] dark:text-[#a9b2db]">
               Built for HOAs, residential communities, and member organizations
             </div>
           </div>
@@ -325,7 +360,7 @@ function Problem() {
   ]
   return (
     <section className="relative overflow-hidden px-6 py-24 lg:px-10">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1400px]">
         <SectionHeading
           title="The Problem With Cash Boxes & Spreadsheets"
           body="Community-run funds are still managed with cash boxes, WhatsApp groups, and personal spreadsheets."
@@ -335,7 +370,7 @@ function Problem() {
             <div key={p.stat} className="group rounded-xl border border-[#0f9e7a] bg-white p-8 shadow-lg transition hover:border-[#00a8d1] dark:border-[#01df9e] dark:bg-[#131b30] dark:hover:border-[#00b6fc]">
               <p.icon className="mb-4 h-8 w-8 text-[#0f9e7a] transition group-hover:text-[#00a8d1] dark:text-[#01df9e] dark:group-hover:text-[#00b6fc]" />
               <h3 className="mb-2 text-2xl font-semibold text-[#191d2e] dark:text-[#f2f4fb]">{p.stat}</h3>
-              <p className="text-[#666f94] dark:text-[#8d97c2]">{p.description}</p>
+              <p className="text-[#4d557a] dark:text-[#a9b2db]">{p.description}</p>
             </div>
           ))}
         </div>
@@ -356,14 +391,14 @@ function Solution() {
   ]
   return (
     <section id="solution" className="relative scroll-mt-24 overflow-hidden px-6 py-24 lg:px-10">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1400px]">
         <SectionHeading title="One Platform. Complete Transparency." body="Everything a committee needs to manage community funds, simplified." />
         <div className="grid gap-8 md:grid-cols-2">
           {features.map((f) => (
             <div key={f.title} className="group rounded-xl border border-[#0f9e7a]/20 bg-[#0f9e7a]/5 p-8 transition hover:border-[#00a8d1] dark:border-[#01df9e]/20 dark:bg-[#01df9e]/10 dark:hover:border-[#00b6fc]">
               <f.icon className="mb-4 h-10 w-10 text-[#0f9e7a] transition group-hover:text-[#00a8d1] dark:text-[#01df9e] dark:group-hover:text-[#00b6fc]" />
               <h3 className="mb-2 text-xl font-semibold text-[#191d2e] dark:text-[#f2f4fb]">{f.title}</h3>
-              <p className="text-[#666f94] dark:text-[#8d97c2]">{f.description}</p>
+              <p className="text-[#4d557a] dark:text-[#a9b2db]">{f.description}</p>
             </div>
           ))}
         </div>
@@ -386,14 +421,14 @@ function Features() {
   ]
   return (
     <section id="features" className="relative scroll-mt-24 overflow-hidden bg-[#0f9e7a]/5 px-6 py-24 lg:px-10 dark:bg-[#01df9e]/10">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1400px]">
         <SectionHeading title="Core Features" body="Everything your committee needs in one unified platform" />
         <div className="grid gap-6 md:grid-cols-3">
           {features.map((f) => (
             <div key={f.title} className="group rounded-xl border border-[#0f9e7a] bg-white p-8 shadow-lg transition hover:border-[#00a8d1] dark:border-[#01df9e] dark:bg-[#131b30] dark:hover:border-[#00b6fc]">
               <f.icon className="mb-4 h-10 w-10 text-[#0f9e7a] transition group-hover:text-[#00a8d1] dark:text-[#01df9e] dark:group-hover:text-[#00b6fc]" />
               <h3 className="mb-2 text-lg font-semibold text-[#191d2e] dark:text-[#f2f4fb]">{f.title}</h3>
-              <p className="text-sm text-[#666f94] dark:text-[#8d97c2]">{f.description}</p>
+              <p className="text-sm text-[#4d557a] dark:text-[#a9b2db]">{f.description}</p>
             </div>
           ))}
         </div>
@@ -423,7 +458,7 @@ function UseCases() {
   ]
   return (
     <section id="use-cases" className="relative scroll-mt-24 overflow-hidden px-6 py-24 lg:px-10">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1400px]">
         <SectionHeading title="Who Oudaa Is For" body="Built for community management, designed to serve any membership-based organization" />
 
         <div className="mb-12 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -445,7 +480,7 @@ function UseCases() {
             >
               <u.icon className="mx-auto mb-4 h-12 w-12 text-[#00a8d1] transition group-hover:text-[#0f9e7a] dark:text-[#00b6fc]" />
               <h3 className="mb-2 text-lg font-semibold text-[#191d2e] dark:text-[#f2f4fb]">{u.title}</h3>
-              <p className="text-sm text-[#666f94] dark:text-[#8d97c2]">{u.description}</p>
+              <p className="text-sm text-[#4d557a] dark:text-[#a9b2db]">{u.description}</p>
             </div>
           ))}
         </div>
@@ -465,7 +500,7 @@ function Testimonials() {
   ]
   return (
     <section id="testimonials" className="relative scroll-mt-24 overflow-hidden px-6 py-24 lg:px-10">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1400px]">
         <SectionHeading title="Trusted by Committees" body="See why communities choose Oudaa to manage their funds" />
         <div className="grid gap-6 md:grid-cols-3">
           {testimonials.map((t) => (
@@ -478,7 +513,7 @@ function Testimonials() {
               <p className="mb-6 italic text-[#4b5375] dark:text-slate-300">{t.quote}</p>
               <div className="border-t border-[#d7dde9] pt-4 dark:border-slate-700/50">
                 <p className="font-semibold text-[#191d2e] dark:text-[#f2f4fb]">{t.author}</p>
-                <p className="mb-2 text-sm text-[#666f94] dark:text-[#8d97c2]">{t.role}</p>
+                <p className="mb-2 text-sm text-[#4d557a] dark:text-[#a9b2db]">{t.role}</p>
                 <p className="text-sm font-semibold text-[#0f9e7a] dark:text-[#01df9e]">{t.stats}</p>
               </div>
             </div>
@@ -507,7 +542,7 @@ function FaqItem({ q, a, open, onClick }) {
         <h3 className="text-lg font-semibold text-[#191d2e] dark:text-[#f2f4fb]">{q}</h3>
         <ChevronDown className={`h-5 w-5 shrink-0 text-[#0f9e7a] transition-transform dark:text-[#01df9e] ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <div className="border-t border-[#d7dde9] px-6 pb-6 pt-6 text-[#666f94] dark:border-slate-700/50 dark:text-[#8d97c2]">{a}</div>}
+      {open && <div className="border-t border-[#d7dde9] px-6 pb-6 pt-6 text-[#4d557a] dark:border-slate-700/50 dark:text-[#a9b2db]">{a}</div>}
     </div>
   )
 }
@@ -543,7 +578,7 @@ function FinalCTA() {
           <h2 className="text-balance text-4xl font-semibold leading-[3.5rem] text-[#191d2e] dark:text-[#f2f4fb] md:text-5xl">
             Bring Transparency To Your Community's Funds
           </h2>
-          <p className="mx-auto max-w-xl text-lg text-[#666f94] dark:text-[#8d97c2]">
+          <p className="mx-auto max-w-xl text-lg text-[#4d557a] dark:text-[#a9b2db]">
             Stop trusting cash boxes and spreadsheets. Get your community set up on Oudaa in minutes.
           </p>
           <div className="flex flex-col justify-center gap-4 pt-4 sm:flex-row">
@@ -558,7 +593,7 @@ function FinalCTA() {
               </button>
             </a>
           </div>
-          <p className="text-sm text-[#666f94] dark:text-[#8d97c2]">No credit card required. Set up your community in minutes.</p>
+          <p className="text-sm text-[#4d557a] dark:text-[#a9b2db]">No credit card required. Set up your community in minutes.</p>
         </div>
       </div>
     </section>
@@ -593,7 +628,7 @@ const FOOTER_LINKS = {
 function Footer() {
   return (
     <footer className="relative border-t border-slate-700/50 bg-[#0b1120]/95 text-[#dfe4f2] backdrop-blur-sm">
-      <div className="mx-auto max-w-[1600px] px-6 py-16 lg:px-10">
+      <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 xl:px-16">
         <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-4">
           {Object.entries(FOOTER_LINKS).map(([section, links]) => (
             <div key={section} className="space-y-4">

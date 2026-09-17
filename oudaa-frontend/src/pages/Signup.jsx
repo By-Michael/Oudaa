@@ -224,6 +224,7 @@ function StepAccount({ data, update, errors, onEmailStatus }) {
             value={data.fullName}
             onChange={(e) => update({ fullName: e.target.value })}
           />
+          {errors.fullName && <p className="mt-1.5 text-xs text-red-500">{errors.fullName}</p>}
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -247,6 +248,7 @@ function StepAccount({ data, update, errors, onEmailStatus }) {
               value={data.phone}
               onChange={(e) => update({ phone: e.target.value })}
             />
+            {errors.phone && <p className="mt-1.5 text-xs text-red-500">{errors.phone}</p>}
           </div>
         </div>
 
@@ -265,6 +267,7 @@ function StepAccount({ data, update, errors, onEmailStatus }) {
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {errors.password && <p className="mt-1.5 text-xs text-red-500">{errors.password}</p>}
           </div>
           <div>
             <label className="label">Confirm password<RequiredMark /></label>
@@ -280,6 +283,7 @@ function StepAccount({ data, update, errors, onEmailStatus }) {
                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {errors.confirmPassword && <p className="mt-1.5 text-xs text-red-500">{errors.confirmPassword}</p>}
           </div>
         </div>
 
@@ -295,6 +299,7 @@ function StepAccount({ data, update, errors, onEmailStatus }) {
             not as an individual resident. Residents get their own accounts later, from the dashboard.<RequiredMark />
           </span>
         </label>
+        {errors.confirmRole && <p className="mt-2 text-xs text-red-500">{errors.confirmRole}</p>}
       </div>
     </div>
   )
@@ -330,6 +335,7 @@ function StepCommunity({ data, update, errors }) {
             value={data.communityName}
             onChange={(e) => onNameChange(e.target.value)}
           />
+          {errors.communityName && <p className="mt-1.5 text-xs text-red-500">{errors.communityName}</p>}
         </div>
 
         <div>
@@ -353,6 +359,7 @@ function StepCommunity({ data, update, errors }) {
             </span>.
             If it's taken, we'll add a number to the end automatically.
           </p>
+          {errors.slug && <p className="mt-1.5 text-xs text-red-500">{errors.slug}</p>}
         </div>
 
         <div>
@@ -468,6 +475,7 @@ function StepFees({ data, update, errors }) {
             </button>
           ))}
         </div>
+        {errors.fees && <p className="mt-2 text-xs text-red-500">{errors.fees}</p>}
       </div>
     </div>
   )
@@ -922,7 +930,7 @@ export default function Signup() {
                 >
                   <ArrowLeft size={15} /> Back
                 </button>
-                <button type="button" onClick={goNext} disabled={submitting || isEmailChecking} className="btn-primary gap-1.5 px-6">
+                <button type="button" onClick={goNext} disabled={submitting || isEmailChecking || (attempted && !canAdvance)} className="btn-primary gap-1.5 px-6">
                   {isEmailChecking ? (
                     <><Loader2 size={15} className="animate-spin" /> Checking…</>
                   ) : step === 5 ? (

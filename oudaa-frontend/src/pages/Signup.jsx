@@ -766,6 +766,8 @@ export default function Signup() {
     setData((prev) => ({ ...prev, ...patch }))
   }
 
+  const [attempted, setAttempted] = useState(false)
+
   const errors = useMemo(() => validateStep(step, data), [step, data])
   const asyncBlocked = useMemo(() => {
     if (step === 1) return ['checking', 'taken'].includes(emailStatus.admin)
@@ -774,12 +776,20 @@ export default function Signup() {
   }, [step, emailStatus, data.committeeMembers])
   const canAdvance = Object.keys(errors).length === 0 && !asyncBlocked
 
+  // Only expose errors to step components after the user has clicked Continue.
+  // This prevents live inline validation while the user is still typing.
+  const displayErrors = attempted ? errors : {}
+
   function goNext() {
+    setAttempted(true)
     if (!canAdvance) return
+    // Valid — reset attempted flag for the next step, then advance
+    setAttempted(false)
     if (step < 5) setStep(step + 1)
     else handleLaunch()
   }
   function goBack() {
+    setAttempted(false)
     if (step > 1) setStep(step - 1)
   }
 
@@ -886,10 +896,10 @@ export default function Signup() {
           <>
             <Stepper step={step} />
             <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-card sm:p-8 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
-              {step === 1 && <StepAccount data={data} update={update} errors={errors} onEmailStatus={setEmailStatus} />}
-              {step === 2 && <StepCommunity data={data} update={update} errors={errors} />}
-              {step === 3 && <StepFees data={data} update={update} errors={errors} />}
-              {step === 4 && <StepCommittee data={data} update={update} errors={errors} onEmailStatus={setEmailStatus} />}
+              {step === 1 && <StepAccount data={data} update={update} errors={displayErrors} onEmailStatus={setEmailStatus} />}
+              {step === 2 && <StepCommunity data={data} update={update} errors={displayErrors} />}
+              {step === 3 && <StepFees data={data} update={update} errors={displayErrors} />}
+              {step === 4 && <StepCommittee data={data} update={update} errors={displayErrors} onEmailStatus={setEmailStatus} />}
               {step === 5 && <StepReview data={data} onEdit={setStep} submitError={submitError} />}
 
               <div className="mt-8 flex items-center justify-between border-t border-ink-200 pt-6 dark:border-[#2e2e2e]">
@@ -901,7 +911,7 @@ export default function Signup() {
                 >
                   <ArrowLeft size={15} /> Back
                 </button>
-                <button type="button" onClick={goNext} disabled={!canAdvance || submitting} className="btn-primary gap-1.5 px-6">
+                <button type="button" onClick={goNext} disabled={submitting} className="btn-primary gap-1.5 px-6">
                   {step === 5 ? (submitting ? 'Creating your community…' : 'Create my community') : 'Continue'}
                   {step < 5 && <ArrowRight size={15} />}
                 </button>

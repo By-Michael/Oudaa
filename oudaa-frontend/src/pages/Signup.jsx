@@ -9,6 +9,7 @@ import {
   Eye,
   EyeOff,
   Globe,
+  Loader2,
   Plus,
   Sparkles,
   Trash2,
@@ -128,14 +129,15 @@ function useEmailAvailability(rawEmail) {
   return status
 }
 
-/** Renders under an email input: a client-side error takes priority over
- * the async availability result, since there's no point telling someone
- * "checking availability" for something that isn't a valid email yet. */
+/** Renders under an email input.
+ * Sync validation errors (format, required) only appear after the user
+ * clicks Continue, passed via syncError from displayErrors.
+ * "Taken" is shown immediately as real-time helpful feedback.
+ * "Checking" and "error" statuses are suppressed here — the Continue
+ * button shows a spinner instead so the field stays clean. */
 function EmailStatusMessage({ status, syncError }) {
   if (syncError) return <p className="mt-1.5 text-xs text-red-500">{syncError}</p>
-  if (status === 'checking') return <p className="mt-1.5 text-xs text-ink-400">Checking availability…</p>
   if (status === 'taken') return <p className="mt-1.5 text-xs text-red-500">This email is already registered to another account.</p>
-  if (status === 'error') return <p className="mt-1.5 text-xs text-ink-400">Couldn't check right now — we'll verify this when you submit.</p>
   return null
 }
 
@@ -774,6 +776,15 @@ export default function Signup() {
     if (step === 4) return data.committeeMembers.some((m) => ['checking', 'taken'].includes(emailStatus[m.id]))
     return false
   }, [step, emailStatus, data.committeeMembers])
+
+  // True only while the background availability check is in-flight.
+  // Drives a spinner on the Continue button instead of inline field text.
+  const isEmailChecking = useMemo(() => {
+    if (step === 1) return emailStatus.admin === 'checking'
+    if (step === 4) return data.committeeMembers.some((m) => emailStatus[m.id] === 'checking')
+    return false
+  }, [step, emailStatus, data.committeeMembers])
+
   const canAdvance = Object.keys(errors).length === 0 && !asyncBlocked
 
   // Only expose errors to step components after the user has clicked Continue.
@@ -911,9 +922,14 @@ export default function Signup() {
                 >
                   <ArrowLeft size={15} /> Back
                 </button>
-                <button type="button" onClick={goNext} disabled={submitting} className="btn-primary gap-1.5 px-6">
-                  {step === 5 ? (submitting ? 'Creating your community…' : 'Create my community') : 'Continue'}
-                  {step < 5 && <ArrowRight size={15} />}
+                <button type="button" onClick={goNext} disabled={submitting || isEmailChecking} className="btn-primary gap-1.5 px-6">
+                  {isEmailChecking ? (
+                    <><Loader2 size={15} className="animate-spin" /> Checking…</>
+                  ) : step === 5 ? (
+                    submitting ? 'Creating your community…' : 'Create my community'
+                  ) : (
+                    <>Continue <ArrowRight size={15} /></>
+                  )}
                 </button>
               </div>
             </div>

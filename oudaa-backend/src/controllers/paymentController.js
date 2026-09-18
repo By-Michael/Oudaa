@@ -447,7 +447,7 @@ async function resolvePaymentMethod(req, community) {
 //     (POST /payments/self-verify/receipt first, or pastes a link) —
 //     `receiptUrl` is required instead. Without a bank-verifiable
 //     reference this always lands in PENDING_REVIEW today (see the CBE
-//     branch below) until QR extraction is wired up.
+//     branch below) unless OCR/Groq extraction resolves a reference.
 //   - TELEBIRR: txnId (the reference number) + phoneNumber (the sender's
 //     phone) — Telebirr has no account to cross-check against.
 //   - legacy single-account communities (no CommunityPaymentMethod rows
@@ -521,8 +521,8 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   // resubmits are fine since they'll get a fresh ID, but the same real
   // transfer can't be used to "pay" twice). CBE has no txnId at this
   // point (receipt-only), so this check simply doesn't apply to it yet —
-  // once QR extraction is wired up and yields a real reference, the same
-  // dedup should run against that instead.
+  // once OCR/Groq extraction yields a real reference, the same dedup
+  // should run against that instead.
   if (!isCbe) {
     const alreadyUsed = await prisma.payment.findFirst({
       where: {
@@ -552,9 +552,9 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   const targetLabel = fee ? `fee "${fee.name}"` : `fund "${fund.name}"`;
 
   // ---- CBE branch ----
-  // The resident types (or has auto-filled from OCR) their transaction ID
-  // in req.body.txnId. The verification engine (bankVerification.js) checks
-  // it against CBE's records on submit — no QR decoding needed here.
+  // The resident types (or has auto-filled via OCR + Groq extraction)
+  // their transaction ID in req.body.txnId. The verification engine
+  // (bankVerification.js) checks it against CBE's records on submit.
   // receiptReference (set by the upload step's OCR extraction) is used as
   // a fallback if txnId was not provided, for backwards-compat with older
   // clients. If neither is present the payment queues for manual review.
@@ -650,11 +650,11 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   // safeguard flag below.
   //
   // CBE is the one exception to the hard-reject: if Veritas concretely
-  // says the QR-decoded reference doesn't match anything, that's much
-  // more likely a QR mis-decode than the resident having typed something
-  // wrong (they never typed anything) — so a CBE non-match still queues
-  // for manual review against the uploaded receipt instead of blocking
-  // the submission outright.
+  // says the extracted reference doesn't match anything, that's much
+  // more likely a mis-extraction (OCR/Groq misreading the receipt) than
+  // the resident having typed something wrong (they never typed
+  // anything) — so a CBE non-match still queues for manual review against
+  // the uploaded receipt instead of blocking the submission outright.
   if (!result.matched && !result.serviceUnavailable && !isCbe) {
     throw new AppError(result.reason || 'Could not verify this transaction. Double-check the ID and try again.', 422);
   }
@@ -755,7 +755,7 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
       // payments so the resident's own history can show "for" a month.
       paidForMonth: fee ? `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` : undefined,
       status,
-      receiptUrl: isCbe ? receiptUrl : undefined,
+      receiptUrl: receiptUrl || undefined,
       verificationRaw: result.raw ?? undefined,
       reviewFlags: flags.length > 0 ? flags.join(' ') : undefined,
     },
@@ -792,12 +792,15 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
 // Best-effort autofill: OCR the uploaded screenshot, then let an LLM
 // (Groq) turn that raw text into structured fields. Never trusted
 // directly — the resident still sees and can correct every field before
-// submitting, and nothing here is used for bank verification.
+// submitting, and nothing here is used for bank verification. Also saves
+// the uploaded file (same as uploadSelfPaymentReceipt does for CBE) so
+// the receipt is attached to the payment and can be viewed later.
 const parsePaymentScreenshot = catchAsync(async (req, res) => {
   if (!req.file) throw new AppError('Screenshot file is required', 422);
   const { txnId, name, amount, bankName, date, source, rawText } =
     await parseReceiptImage(req.file.buffer, req.file.mimetype, req.file.originalname);
-  res.json({ success: true, data: { txnId, name, amount, bankName, date, source, rawText } });
+  const { fileUrl } = await saveReceiptFile(req.file);
+  res.json({ success: true, data: { txnId, name, amount, bankName, date, source, rawText, receiptUrl: fileUrl } });
 });
 
 // RESIDENT retracts their own self-verified payment while it's still

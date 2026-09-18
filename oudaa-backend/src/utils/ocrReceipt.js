@@ -99,21 +99,23 @@ function extractName(text) {
  * }>}
  */
 async function parseReceiptImage(fileBuffer, mimetype, filename) {
-  // Primary path: a Groq vision model reads the screenshot directly, no
-  // OCR.space involved. Only attempted when GROQ_API_KEY is configured;
-  // returns null (not thrown) if unconfigured, and throws on a
-  // configured-but-failed call so we can fall back to OCR.space below
-  // instead of failing the whole request.
+  // Optional path: a Groq vision model reads the screenshot directly, no
+  // OCR.space involved. Off by default (see GROQ_VISION_ENABLED in
+  // .env.example) — extractReceiptFieldsFromImage returns null immediately
+  // without any network call unless explicitly enabled, so this is a
+  // no-op on every request today and OCR.space below is the real path.
+  // Kept behind try/catch so that if it's ever enabled, a failed/misconfig
+  // call still falls back to OCR.space instead of failing the request.
   try {
     const visionResult = await extractReceiptFieldsFromImage(fileBuffer, mimetype);
     if (visionResult) {
       return { ...visionResult, source: 'groq-vision', rawText: '' };
     }
   } catch (err) {
-    console.error('[ocrReceipt] Groq vision extraction failed, falling back to OCR.space:', err.message);
+    console.warn('[ocrReceipt] Groq vision extraction failed, falling back to OCR.space:', err.message);
   }
 
-  // Fallback path: OCR.space extracts the raw text off the screenshot
+  // Primary path: OCR.space extracts the raw text off the screenshot
   // first; Groq then classifies that text into structured fields (amount
   // vs. txn ID vs. sender name, etc.) — Groq never sees the image itself
   // here, only the text OCR.space already extracted. Used when the vision

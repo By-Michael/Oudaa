@@ -291,6 +291,20 @@ Rules:
  *   configured-but-failed call so the caller can log it distinctly.
  */
 async function extractReceiptFieldsFromImage(fileBuffer, mimetype) {
+  // Off by default. OCR.space already handles image -> text reliably for
+  // this deployment, and Groq's vision lineup has been a moving target
+  // (Scout/Maverick retired, qwen/qwen3.6-27b 404s as "model_not_found" on
+  // this account even though Groq's own docs list it as current — almost
+  // certainly a model-access/allowlist gap on this API key, not a typo).
+  // Rather than burn a network round-trip and an error log on every single
+  // upload chasing whichever model name Groq considers current this month,
+  // this path is now opt-in: set GROQ_VISION_ENABLED=true only after
+  // confirming `node scripts/check-env.js` reports GROQ_VISION_MODEL as
+  // PASS for your key. Until then every call short-circuits here and
+  // parseReceiptImage goes straight to the OCR.space + text-classification
+  // path, which is the one actually working.
+  if (process.env.GROQ_VISION_ENABLED !== 'true') return null;
+
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null; // not configured — silent fallback to OCR.space path
 

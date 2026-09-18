@@ -68,6 +68,7 @@ function describePendingChangeDiff(diff) {
 }
 
 export default function AppLayout({ role }) {
+  const { calendar } = useCalendar()
   const [open, setOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)

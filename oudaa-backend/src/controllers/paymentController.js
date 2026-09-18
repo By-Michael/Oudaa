@@ -407,6 +407,24 @@ const DB_PROVIDER_TO_VERITAS = {
   TELEBIRR: 'telebirr',
 };
 
+// CBE's Veritas adapter can require `accountSuffix` (the last few digits
+// of whichever account — sender or receiver — appears on the receipt) to
+// disambiguate a reference that otherwise resolves to multiple candidate
+// transactions — CBE's suffix is the last 8 digits of the account.
+// Hivee doesn't collect the resident's own account number
+// anywhere (Resident has no bank-account field), so the resident side of
+// "works both ways" isn't available to us — but the community's own
+// receiving account number always is (CommunityPaymentMethod.accountNumber
+// / the legacy Community.paymentAccountNumber). Auto-derive the suffix
+// from that instead of leaving it blank, so CBE lookups stop silently
+// missing a field Veritas can actually use. A resident-supplied suffix
+// (e.g. one day extracted from the receipt via OCR) still wins if present.
+function deriveAccountSuffix(accountNumber) {
+  const digits = (accountNumber || '').replace(/\D/g, '');
+  if (digits.length < 8) return null;
+  return digits.slice(-8);
+}
+
 // Resolves which payment method the resident is paying through, and what
 // provider/expected-account that implies. Falls back to the community's
 // single legacy account (community.paymentAccountNumber, no provider
@@ -629,12 +647,20 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
     }
   }
 
+  // CBE: use the resident-supplied suffix if we ever have one, otherwise
+  // fall back to one auto-derived from the community's receiving account
+  // (see deriveAccountSuffix) so the Veritas lookup isn't missing a field
+  // it needs just because the resident was never asked for it.
+  const effectiveSuffix = isCbe
+    ? (suffix || deriveAccountSuffix(expectedAccountNumber))
+    : suffix;
+
   const result = await verifyBankTransaction({
     txnId: effectiveTxnId,
     expectedAmount: amount,
     expectedAccountNumber,
     provider,
-    suffix,
+    suffix: effectiveSuffix,
     phoneNumber,
   });
 

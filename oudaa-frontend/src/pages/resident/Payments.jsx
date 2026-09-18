@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { PageHeader, Modal, Badge, EmptyState, currency, formatDate, usePagedList, Pager } from '../../components/ui'
+import { useLanguage } from '../../context/LanguageContext'
 
 // Maps a CommunityPaymentMethod's `provider` enum (DB value) to the
 // lowercase hint the backend's self-verify endpoint expects (see
@@ -87,6 +88,7 @@ const emptyForm = { feeId: '', paymentMethodId: '', payerName: '', txnId: '', ph
 
 export default function ResidentPayments() {
   const { user } = useAuth()
+  const { t } = useLanguage()
   const {
     payments, fees, residents, community, paymentMethods,
     submitSelfPayment, uploadSelfPaymentReceipt, retractPayment, parsePaymentScreenshot, loadError, loading,
@@ -322,7 +324,7 @@ export default function ResidentPayments() {
   const [retractError, setRetractError] = useState('')
 
   async function handleRetract(id) {
-    if (!window.confirm("Retract this payment? This can't be undone — you'll need to resubmit if it was actually correct.")) return
+    if (!window.confirm(t('resident_portal.retract_this_payment_this_can_t_be_undon', "Retract this payment? This can't be undone — you'll need to resubmit if it was actually correct."))) return
     setRetractingId(id)
     setRetractError('')
     try {

@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { DataProvider } from './context/DataContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
+import { LanguageProvider } from './context/LanguageContext.jsx'
 import './index.css'
 
 // Let the app (see App.jsx's ScrollToTop) control scroll position on
@@ -20,9 +21,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
-          <DataProvider>
-            <App />
-          </DataProvider>
+          <LanguageProvider>
+            <DataProvider>
+              <App />
+            </DataProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>

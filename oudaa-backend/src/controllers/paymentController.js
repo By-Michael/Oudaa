@@ -4,7 +4,6 @@ const AppError = require('../utils/AppError');
 const { recordAudit } = require('../utils/audit');
 const { verifyBankTransaction, PROVIDERS_NEEDING_SUFFIX, PROVIDERS_NEEDING_PHONE } = require('../utils/bankVerification');
 const { parseReceiptImage } = require('../utils/ocrReceipt');
-const { parseReceiptImage } = require('../utils/ocrReceipt');
 const { saveReceiptFile } = require('../config/storage');
 const { sendNotificationEmail } = require('../utils/email');
 
@@ -138,7 +137,8 @@ async function resolveTarget(req) {
 }
 
 const createPayment = catchAsync(async (req, res) => {
-  const residentId = await resolveResidentId(req);\n  const target = await resolveTarget(req);
+  const residentId = await resolveResidentId(req);
+  const target = await resolveTarget(req);
   const isAdminRecording = req.user.role === 'ADMIN';
 
   // A committee member recording a payment must supply the real transaction

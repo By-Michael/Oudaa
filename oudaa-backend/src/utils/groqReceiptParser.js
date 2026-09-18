@@ -47,12 +47,15 @@ function resolveModel(envValue, fallback, label) {
   return envValue || fallback;
 }
 
-// llama-3.1-8b-instant was retired by Groq — silently 404'd on every call,
-// which is why classification looked "broken" even though OCR.space itself
-// was returning text fine. Groq's migration guidance points text-only
-// traffic at gpt-oss-120b now. Override via env if you want a different
-// (currently-active) model.
-const GROQ_MODEL = resolveModel(process.env.GROQ_MODEL, 'openai/gpt-oss-120b', 'GROQ_MODEL');
+// llama-3.1-8b-instant was retired by Groq (fully shut down Aug 16, 2026) —
+// silently 404'd on every call, which is why classification looked
+// "broken" even though OCR.space itself was returning text fine.
+// openai/gpt-oss-20b is the cheapest currently-active production text
+// model on Groq ($0.075/$0.30 per 1M vs $0.15/$0.60 for the 120b variant,
+// ~2x the throughput) and this task — classifying a handful of already-
+// OCR'd fields — doesn't need a bigger model. Override via env if you
+// want a different (currently-active) model.
+const GROQ_MODEL = resolveModel(process.env.GROQ_MODEL, 'openai/gpt-oss-20b', 'GROQ_MODEL');
 
 // Strict JSON Schema for the extracted fields. Using response_format:
 // { type: 'json_schema', json_schema: { strict: true, ... } } instead of
@@ -82,27 +85,59 @@ const RECEIPT_FIELDS_SCHEMA = {
   },
 };
 
-const SYSTEM_PROMPT = `You extract structured fields from OCR text of a bank payment/transfer receipt or screenshot. The OCR text may be messy, have broken line breaks, or missing spaces. This is most commonly a Commercial Bank of Ethiopia (CBE) receipt.
+const SYSTEM_PROMPT = `You read OCR text from a bank payment receipt. The text may be messy: broken line breaks, missing spaces, random line order. This is most often a Commercial Bank of Ethiopia (CBE) receipt, but treat other banks the same way.
 
-Return ONLY a JSON object, no prose, no markdown fences, with exactly these keys:
+Your only job: fill in 5 fields from the text. Output ONLY a JSON object. No words before it. No words after it. No markdown fences like \`\`\`.
+
+The JSON object must have exactly these 5 keys, always, in this order:
 {
-  "amount": number or null,       // the transferred amount, as a plain number, no currency symbol or commas
-  "name": string or null,         // the sender's / payer's full name (not the recipient, not bank staff)
-  "txnId": string or null,        // transaction ID / reference number / FT number (see rules below)
-  "bankName": string or null,     // the bank or mobile money provider name
-  "date": string or null          // transaction date, ISO 8601 (YYYY-MM-DD) if you can determine it, else null
+  "amount": number or null,
+  "name": string or null,
+  "txnId": string or null,
+  "bankName": string or null,
+  "date": string or null
 }
 
-Rules:
-- If a field is not clearly present in the text, use null. Never guess or invent a value.
-- amount must be a plain JSON number (e.g. 1250.5), not a string, not formatted with commas or currency symbols.
-- txnId extraction rules (in priority order):
-    1. Look for a label like "Transaction ID", "Txn ID", "Reference", "Ref No", "FT No", "FT#" followed by an alphanumeric value — that labeled value IS the txnId.
-    2. CBE receipts commonly use FT-numbers: alphanumeric strings starting with "FT" followed by digits and letters (e.g. FT24219XXXXX, FT2024ABCD12). If you see one, it is almost certainly the txnId.
-    3. If no label and no FT-number, look for a standalone alphanumeric string of 8–20 characters that mixes letters and digits and appears in isolation (not embedded in a sentence), which is plausibly a bank reference.
-    4. Never use account numbers (usually pure digits, 10–16 digits), phone numbers (10–12 digits, often starting with 09 or +251), or amounts as the txnId.
-- name must be the sender's / payer's full name. On CBE receipts this is often labeled "Sender", "From", "Account Name", or "Name". Do not use the recipient's name or the teller/branch name.
-- Respond with the JSON object only.`;
+Field-by-field rules. Read each one before you decide a value.
+
+1. amount
+- The amount of money that was sent.
+- Write it as a plain number. Example: 1250.5
+- Do NOT use text. Do NOT use commas. Do NOT use a currency symbol like "ETB" or "Birr".
+- If you are not sure which number is the amount, use null. Do not guess.
+
+2. name
+- The name of the SENDER — the person who sent the money.
+- Do NOT use the name of the person who RECEIVED the money.
+- Do NOT use a bank staff name or branch name.
+- Common labels for this field: "Sender", "From", "Payer", "Account Name", "Name".
+- If no sender name is visible, use null.
+
+3. txnId
+- The transaction ID / reference number / FT number that identifies this one transfer.
+- Check these 3 places, in this exact order, and stop at the first one that matches:
+  Step 1: Look for a label word near a code. Label words: "Transaction ID", "Txn ID", "Reference", "Ref No", "FT No", "FT#". The code right after that label word is the txnId.
+  Step 2: If Step 1 finds nothing, look for a code that starts with the letters "FT" followed by numbers and letters (example: FT24219ABCDE). CBE receipts almost always use this format. If you find one, it is the txnId.
+  Step 3: If Step 1 and Step 2 both find nothing, look for a lone code, 8 to 20 characters long, that mixes letters and numbers, and stands by itself (not part of a sentence). Use that.
+- Never use these as txnId, even if they look like a code:
+  - An account number (usually only digits, 10 to 16 digits long, no letters).
+  - A phone number (10 to 12 digits, often starts with "09" or "+251").
+  - The amount of money.
+- If none of the 3 steps find anything, use null.
+
+4. bankName
+- The name of the bank or mobile money provider on the receipt (example: "Commercial Bank of Ethiopia", "CBE", "Telebirr").
+- If not visible, use null.
+
+5. date
+- The date the transfer happened.
+- Write it as YYYY-MM-DD if you can tell what the date is.
+- If the date format is unclear or missing, use null. Do not guess a date.
+
+General rules that apply to every field:
+- Only use information that is actually in the text. Never invent a value.
+- When unsure, always choose null over a guess.
+- Your entire reply must be the JSON object only, nothing else.`;
 
 // Defensive normalization — never trust the model to perfectly follow the
 // schema, especially on amount's type. Shared by both the text and vision
@@ -210,7 +245,16 @@ async function extractReceiptFields(rawText, regexHints = {}) {
   const res = await groqChatCompletion(apiKey, {
     model: GROQ_MODEL,
     temperature: 0,
-    max_tokens: 300,
+    // openai/gpt-oss-120b is a reasoning model — its "thinking" tokens are
+    // drawn from the same max_tokens budget as the visible output. At 300
+    // tokens the model can spend the whole budget reasoning and return an
+    // empty message.content with no error at all ("Groq response had no
+    // content" — nothing actually failed, it just never got to writing).
+    // reasoning_effort: 'low' keeps the thinking phase short for a simple
+    // classification task, and max_tokens is raised to leave real headroom
+    // for output after reasoning either way.
+    reasoning_effort: 'low',
+    max_tokens: 1024,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userContent },
@@ -254,27 +298,59 @@ const GROQ_VISION_MODEL = resolveModel(
   'GROQ_VISION_MODEL'
 );
 
-const VISION_SYSTEM_PROMPT = `You extract structured fields from an image of a bank payment/transfer receipt or screenshot. This is most commonly a Commercial Bank of Ethiopia (CBE) receipt.
+const VISION_SYSTEM_PROMPT = `You look at an image of a bank payment receipt or screenshot. This is most often a Commercial Bank of Ethiopia (CBE) receipt, but treat other banks the same way.
 
-Return ONLY a JSON object, no prose, no markdown fences, with exactly these keys:
+Your only job: fill in 5 fields from the image. Output ONLY a JSON object. No words before it. No words after it. No markdown fences like \`\`\`.
+
+The JSON object must have exactly these 5 keys, always, in this order:
 {
-  "amount": number or null,       // the transferred amount, as a plain number, no currency symbol or commas
-  "name": string or null,         // the sender's / payer's full name (not the recipient, not bank staff)
-  "txnId": string or null,        // transaction ID / reference number / FT number (see rules below)
-  "bankName": string or null,     // the bank or mobile money provider name
-  "date": string or null          // transaction date, ISO 8601 (YYYY-MM-DD) if you can determine it, else null
+  "amount": number or null,
+  "name": string or null,
+  "txnId": string or null,
+  "bankName": string or null,
+  "date": string or null
 }
 
-Rules:
-- If a field is not clearly present in the image, use null. Never guess or invent a value.
-- amount must be a plain JSON number (e.g. 1250.5), not a string, not formatted with commas or currency symbols.
-- txnId extraction rules (in priority order):
-    1. Look for a label like "Transaction ID", "Txn ID", "Reference", "Ref No", "FT No", "FT#" followed by an alphanumeric value — that labeled value IS the txnId.
-    2. CBE receipts commonly use FT-numbers: alphanumeric strings starting with "FT" followed by digits and letters (e.g. FT24219XXXXX, FT2024ABCD12). If you see one, it is almost certainly the txnId.
-    3. If no label and no FT-number, look for a standalone alphanumeric string of 8–20 characters that mixes letters and digits and appears in isolation, which is plausibly a bank reference.
-    4. Never use account numbers (usually pure digits, 10–16 digits), phone numbers (10–12 digits starting with 09 or +251), or amounts as the txnId.
-- name must be the sender's / payer's full name. On CBE receipts this is often labeled "Sender", "From", "Account Name", or "Name". Do not use the recipient's name or the teller/branch name.
-- Respond with the JSON object only.`;
+Field-by-field rules. Read each one before you decide a value.
+
+1. amount
+- The amount of money that was sent.
+- Write it as a plain number. Example: 1250.5
+- Do NOT use text. Do NOT use commas. Do NOT use a currency symbol like "ETB" or "Birr".
+- If you are not sure which number is the amount, use null. Do not guess.
+
+2. name
+- The name of the SENDER — the person who sent the money.
+- Do NOT use the name of the person who RECEIVED the money.
+- Do NOT use a bank staff name or branch name.
+- Common labels for this field: "Sender", "From", "Payer", "Account Name", "Name".
+- If no sender name is visible, use null.
+
+3. txnId
+- The transaction ID / reference number / FT number that identifies this one transfer.
+- Check these 3 places, in this exact order, and stop at the first one that matches:
+  Step 1: Look for a label word near a code. Label words: "Transaction ID", "Txn ID", "Reference", "Ref No", "FT No", "FT#". The code right after that label word is the txnId.
+  Step 2: If Step 1 finds nothing, look for a code that starts with the letters "FT" followed by numbers and letters (example: FT24219ABCDE). CBE receipts almost always use this format. If you find one, it is the txnId.
+  Step 3: If Step 1 and Step 2 both find nothing, look for a lone code, 8 to 20 characters long, that mixes letters and numbers, and stands by itself (not part of a sentence). Use that.
+- Never use these as txnId, even if they look like a code:
+  - An account number (usually only digits, 10 to 16 digits long, no letters).
+  - A phone number (10 to 12 digits, often starts with "09" or "+251").
+  - The amount of money.
+- If none of the 3 steps find anything, use null.
+
+4. bankName
+- The name of the bank or mobile money provider on the receipt (example: "Commercial Bank of Ethiopia", "CBE", "Telebirr").
+- If not visible, use null.
+
+5. date
+- The date the transfer happened.
+- Write it as YYYY-MM-DD if you can tell what the date is.
+- If the date format is unclear or missing, use null. Do not guess a date.
+
+General rules that apply to every field:
+- Only use information that is actually visible in the image. Never invent a value.
+- When unsure, always choose null over a guess.
+- Your entire reply must be the JSON object only, nothing else.`;
 
 /**
  * Reads the receipt screenshot directly with a Groq vision model — no
@@ -311,10 +387,20 @@ async function extractReceiptFieldsFromImage(fileBuffer, mimetype) {
   const base64 = fileBuffer.toString('base64');
   const dataUrl = `data:${mimetype};base64,${base64}`;
 
+  // reasoning_effort only applies to gpt-oss-family reasoning models —
+  // Groq's Qwen vision models don't take it, and passing an unsupported
+  // param to them would 400 in a way our retry ladder isn't built to
+  // recover from. Only send it when the configured vision model is
+  // actually a gpt-oss model.
+  const visionExtraParams = GROQ_VISION_MODEL.startsWith('openai/gpt-oss')
+    ? { reasoning_effort: 'low' }
+    : {};
+
   const res = await groqChatCompletion(apiKey, {
     model: GROQ_VISION_MODEL,
     temperature: 0,
-    max_tokens: 300,
+    ...visionExtraParams,
+    max_tokens: 1024,
     messages: [
       { role: 'system', content: VISION_SYSTEM_PROMPT },
       {

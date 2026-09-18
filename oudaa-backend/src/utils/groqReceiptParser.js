@@ -123,6 +123,16 @@ function normalizeParsedFields(parsed) {
   };
 }
 
+// Strips ```json ... ``` / ``` ... ``` fences some models wrap their
+// output in despite being told not to — mainly matters for the no-
+// response_format last-resort retry in groqChatCompletion, which has
+// nothing enforcing a fence-free reply.
+function stripJsonFences(content) {
+  const trimmed = content.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return fenced ? fenced[1] : trimmed;
+}
+
 /**
  * POSTs to the Groq chat completions endpoint, preferring strict JSON
  * Schema mode but transparently retrying once with looser JSON Object mode
@@ -141,13 +151,34 @@ async function groqChatCompletion(apiKey, body) {
 
   if (!res.ok && res.status === 400) {
     const bodyText = await res.clone().text().catch(() => '');
-    if (/response_format|json_schema|does not support/i.test(bodyText)) {
+    // Any 400 while in strict schema mode is worth retrying in looser
+    // json_object mode — this covers both "the model doesn't support
+    // response_format at all" (response_format/json_schema/does not
+    // support in the message) AND "the model supports it but couldn't
+    // produce output that satisfies the strict schema" (Groq's
+    // json_validate_failed code, which is what was actually happening
+    // here and wasn't being matched before, silently killing every
+    // extraction and falling all the way back to regex).
+    if (/response_format|json_schema|does not support|json_validate_failed/i.test(bodyText)) {
       res = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({ ...body, response_format: { type: 'json_object' } }),
       });
     }
+  }
+
+  // Last-resort retry: if json_object mode also 400s, try again with no
+  // response_format constraint at all (relying purely on the prompt's
+  // "Return ONLY a JSON object" instruction). Some Groq models reject
+  // response_format outright rather than ignoring it, so this is the only
+  // way to get a usable response from them.
+  if (!res.ok && res.status === 400) {
+    res = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
   }
 
   return res;
@@ -197,7 +228,7 @@ async function extractReceiptFields(rawText, regexHints = {}) {
 
   let parsed;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(stripJsonFences(content));
   } catch (err) {
     throw new Error(`Groq response was not valid JSON: ${content.slice(0, 200)}`);
   }
@@ -293,7 +324,7 @@ async function extractReceiptFieldsFromImage(fileBuffer, mimetype) {
 
   let parsed;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(stripJsonFences(content));
   } catch (err) {
     throw new Error(`Groq vision response was not valid JSON: ${content.slice(0, 200)}`);
   }

@@ -59,8 +59,13 @@ async function ocrSpaceParse(fileBuffer, mimetype, filename) {
 
 // ---- heuristic extraction over the raw OCR text ----
 
-// Priority 1: labeled field (Txn ID, Reference, FT No, etc.)
-const TXN_LABEL_RE = /(?:txn|transaction|trans(?:fer)?|reference|ref(?:\s*no)?|ft\s*(?:no|#)?)\s*[:\-]?\s*([A-Z0-9\-]{6,})/i;
+// Priority 1: labeled field (Txn ID, Reference, FT No, etc.). The
+// captured value must contain at least one digit — real references/FT
+// numbers always do, but the loose version of this pattern used to also
+// grab any plain English word sitting right after the label (no colon
+// required between them), e.g. "Transaction" followed by an unrelated UI
+// label like "Action Required" would capture "Action" as the txnId.
+const TXN_LABEL_RE = /(?:txn|transaction|trans(?:fer)?|reference|ref(?:\s*no)?|ft\s*(?:no|#)?)\s*[:\-]?\s*((?=[A-Z0-9\-]*[0-9])[A-Z0-9\-]{6,})/i;
 // Priority 2: CBE FT-number pattern — starts with FT, 8–20 chars total.
 const CBE_FT_RE = /\bFT[A-Z0-9]{6,18}\b/i;
 // Priority 3: generic alphanumeric token (fallback).

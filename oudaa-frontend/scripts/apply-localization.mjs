@@ -42,5 +42,13 @@ if (problems.length) {
 }
 
 const out = path.resolve('src/localization/am.json')
+// Preserve supplemental/rescan translations already present in the runtime catalog.
+let existing = {}
+if (fs.existsSync(out)) {
+  try { existing = JSON.parse(fs.readFileSync(out, 'utf8')) } catch { existing = {} }
+}
+for (const [key, translation] of Object.entries(existing)) {
+  if (!(key in am) && translation) am[key] = translation
+}
 fs.writeFileSync(out, JSON.stringify(am, null, 2) + '\n')
 console.log(`Applied ${Object.keys(am).length} Amharic translations to ${out}`)

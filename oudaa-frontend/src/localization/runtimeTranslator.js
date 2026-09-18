@@ -40,6 +40,7 @@ let observer = null
 let applying = false
 let currentLanguage = 'en'
 let exactMap = new Map()
+let normalizedExactMap = new Map()
 let templates = []
 
 function escapeRegex(value) {
@@ -77,6 +78,7 @@ function buildTemplateMatcher(source, translation) {
 
 function rebuildCatalogs(en, am) {
   exactMap = new Map()
+  normalizedExactMap = new Map()
   templates = []
   for (const key of Object.keys(en || {})) {
     const source = String(en[key] ?? '')
@@ -90,7 +92,18 @@ function rebuildCatalogs(en, am) {
     const existing = exactMap.get(source)
     if (existing === undefined) exactMap.set(source, translation)
     else if (existing !== translation) exactMap.delete(source)
+
+    const normalizedSource = normalizeWhitespace(source)
+    if (normalizedSource) {
+      const normalizedExisting = normalizedExactMap.get(normalizedSource)
+      if (normalizedExisting === undefined) normalizedExactMap.set(normalizedSource, translation)
+      else if (normalizedExisting !== translation) normalizedExactMap.delete(normalizedSource)
+    }
   }
+}
+
+function normalizeWhitespace(value) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim()
 }
 
 function translateValue(value) {
@@ -98,6 +111,14 @@ function translateValue(value) {
   if (currentLanguage !== 'am' || !text.trim()) return text
   const exact = exactMap.get(text)
   if (exact) return exact
+
+  const normalized = normalizeWhitespace(text)
+  const normalizedExact = normalizedExactMap.get(normalized)
+  if (normalizedExact) {
+    const leading = text.match(/^\s*/)?.[0] || ''
+    const trailing = text.match(/\s*$/)?.[0] || ''
+    return `${leading}${normalizedExact}${trailing}`
+  }
 
   for (const item of templates) {
     const match = text.match(item.matcher)

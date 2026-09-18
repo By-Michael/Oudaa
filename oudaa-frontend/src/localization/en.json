@@ -1682,5 +1682,9 @@
   "rescan.final.40025": "approver",
   "rescan.final.40026": "for",
   "rescan.final.40027": "has",
-  "rescan.final.40028": "pending_review"
+  "rescan.final.40028": "pending_review",
+  "settings.calendar": "Calendar",
+  "settings.calendar_description": "Choose the calendar used for dates, date pickers, reports, filters, and other calendar-based displays throughout the platform. Your choice is saved to your account.",
+  "settings.gregorian": "Gregorian",
+  "settings.ethiopian": "Ethiopian Calendar"
 }

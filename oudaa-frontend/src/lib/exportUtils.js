@@ -1,3 +1,4 @@
+import { formatDateTime as formatCalendarDateTime } from './ethiopianCalendar'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -104,7 +105,7 @@ export function exportToPdf({ filename, title, subtitle, meta, columns, rows, or
       doc.setFontSize(8)
       doc.setTextColor(150, 150, 160)
       doc.text(
-        `Generated ${new Date().toLocaleString('en-GB')} · Page ${doc.internal.getCurrentPageInfo().pageNumber} of ${pageCount}`,
+        `Generated ${formatCalendarDateTime(new Date())} · Page ${doc.internal.getCurrentPageInfo().pageNumber} of ${pageCount}`,
         32,
         doc.internal.pageSize.getHeight() - 20
       )
@@ -232,7 +233,7 @@ export function exportRichPdf({ filename, title, subtitle, kpis, charts, section
     doc.setFontSize(8)
     doc.setTextColor(150, 150, 160)
     doc.text(
-      `Generated ${new Date().toLocaleString('en-GB')} · Page ${i} of ${pageCount}`,
+      `Generated ${formatCalendarDateTime(new Date())} · Page ${i} of ${pageCount}`,
       margin,
       pageHeight - 20
     )

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, Pencil, FolderKanban, Calendar, Ban, X, Search } from 'lucide-react'
 import { useData } from '../../context/DataContext'
-import { PageHeader, Modal, Badge, currency, formatDate, EmptyState, notify, useDebouncedValue } from '../../components/ui'
+import { PageHeader, Modal, Badge, currency, formatDate, EmptyState, notify, useDebouncedValue, CalendarDateInput } from '../../components/ui'
 
 const empty = { name: '', description: '', fundId: '', budget: '', status: 'planned', startDate: '', endDate: '' }
 
@@ -373,11 +373,11 @@ export default function Projects() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Start date</label>
-              <input required type="date" className="input" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+              <CalendarDateInput value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} className="input" />
             </div>
             <div>
               <label className="label">End date</label>
-              <input required type="date" className="input" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
+              <CalendarDateInput value={form.endDate} onChange={(value) => setForm({ ...form, endDate: value })} className="input" />
             </div>
           </div>
           <div className="flex gap-2 pt-2">

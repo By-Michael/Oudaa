@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import { DataProvider } from './context/DataContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { LanguageProvider } from './context/LanguageContext.jsx'
+import { CalendarProvider } from './context/CalendarContext.jsx'
 import './index.css'
 
 // Let the app (see App.jsx's ScrollToTop) control scroll position on
@@ -22,9 +23,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <ThemeProvider>
           <LanguageProvider>
-            <DataProvider>
+            <CalendarProvider>
+              <DataProvider>
               <App />
-            </DataProvider>
+              </DataProvider>
+            </CalendarProvider>
           </LanguageProvider>
         </ThemeProvider>
       </AuthProvider>

@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { useTheme } from '../context/ThemeContext'
+import { useCalendar } from '../context/CalendarContext'
 import api, { endpoints, fileUrl } from '../lib/api'
 import { currency, formatDate, Modal, PageSkeleton, notify } from '../components/ui'
 import { getNotificationPrefs, onNotificationPrefsChanged } from '../lib/notificationPrefs'
@@ -588,7 +589,7 @@ export default function AppLayout({ role }) {
               not for background/action-triggered refreshes — so the page
               never flashes empty tables/zeroed stats and then suddenly
               pops to real data (see DataContext.hasLoadedOnce). */}
-          {loading && !hasLoadedOnce ? <PageSkeleton /> : <Outlet />}
+          {loading && !hasLoadedOnce ? <PageSkeleton /> : <Outlet key={calendar} />}
         </main>
       </div>
       </div>

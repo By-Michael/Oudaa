@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { PageHeader, Modal, Badge, EmptyState, currency, formatDate, usePagedList, Pager } from '../../components/ui'
 import { useLanguage } from '../../context/LanguageContext'
+import { formatMonthKey } from '../../lib/ethiopianCalendar'
 
 // Maps a CommunityPaymentMethod's `provider` enum (DB value) to the
 // lowercase hint the backend's self-verify endpoint expects (see
@@ -29,10 +30,7 @@ function describeForMonth(paidForMonth) {
   if (!paidForMonth) return null
   const keys = paidForMonth.split(',').filter(Boolean)
   if (keys.length === 0) return null
-  const label = (key) => {
-    const [y, m] = key.split('-').map(Number)
-    return `${MONTH_NAMES[m - 1]} ${y}`
-  }
+  const label = (key) => formatMonthKey(key)
   const now = new Date()
   const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const isFuture = keys.some((k) => k > nowKey)

@@ -1682,5 +1682,9 @@
   "rescan.final.40025": "አጽዳቂ",
   "rescan.final.40026": "ለ",
   "rescan.final.40027": "አለው",
-  "rescan.final.40028": "በግምገማ ላይ"
+  "rescan.final.40028": "በግምገማ ላይ",
+  "settings.calendar": "የቀን መቁጠሪያ",
+  "settings.calendar_description": "በመድረኩ ሁሉ ለቀኖች፣ ለቀን መምረጫዎች፣ ለሪፖርቶች፣ ለማጣሪያዎች እና ለሌሎች የቀን ተያያዥ ማሳያዎች የሚጠቀሙበትን የቀን መቁጠሪያ ይምረጡ። ምርጫዎ በመለያዎ ይቀመጣል።",
+  "settings.gregorian": "ግሪጎሪያን",
+  "settings.ethiopian": "የኢትዮጵያ ዘመን አቆጣጠር"
 }

@@ -691,6 +691,7 @@ const emptyMethodForm = {
 const MAX_PAYMENT_METHODS = 2
 
 function PaymentsTab() {
+  const { t } = useLanguage()
   const { community, paymentMethods, pendingChanges, addPaymentMethod, updatePaymentMethod, removePaymentMethod, updateCommunity, cancelPendingChange } = useData()
   const [modal, setModal] = useState(false)
   const [editingId, setEditingId] = useState(null)

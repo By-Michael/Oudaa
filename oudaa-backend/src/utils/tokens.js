@@ -14,8 +14,12 @@ function signAccessToken(user) {
 }
 
 function signRefreshToken(user) {
+  // jti makes every token unique. Without it, two tokens for the same user
+  // issued within the same second (same `iat`) are byte-identical, so their
+  // hashes collide on RefreshToken.tokenHash's unique constraint (e.g. a
+  // login immediately followed by a refresh/rotation, or two quick logins).
   return jwt.sign(
-    { sub: user.id, type: 'refresh' },
+    { sub: user.id, type: 'refresh', jti: crypto.randomUUID() },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '14d' }
   );

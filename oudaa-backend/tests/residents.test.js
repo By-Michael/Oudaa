@@ -21,7 +21,7 @@ describe('POST /residents (create)', () => {
     const res = await request(app)
       .post(BASE)
       .set('Authorization', `Bearer ${token}`)
-      .send({ fullName: 'New Resident', email: 'new.resident@example.com', password: 'ResidentPass1', unitNumber: 'A-101' });
+      .send({ fullName: 'New Resident', email: 'new.resident@example.com', password: 'ResidentPass1', unitNumber: 'A-101', phone: '0911000000', idNumber: 'ID-12345', ownerType: 'OWNER' });
 
     expect(res.status).toBe(201);
     expect(res.body.data.unitNumber ?? res.body.data.resident?.unitNumber).toBeTruthy();
@@ -53,7 +53,7 @@ describe('POST /residents (create)', () => {
   it('rejects a duplicate email with 409', async () => {
     const { admin } = await createCommunityWithAdmin();
     const { token } = await loginAs(admin.email, admin.plainPassword);
-    const payload = { fullName: 'Dup', email: 'dup@example.com', password: 'Password123', unitNumber: 'A-1' };
+    const payload = { fullName: 'Dup', email: 'dup@example.com', password: 'Password123', unitNumber: 'A-1', phone: '0911000000', idNumber: 'ID-12345', ownerType: 'OWNER' };
 
     await request(app).post(BASE).set('Authorization', `Bearer ${token}`).send(payload);
     const res = await request(app).post(BASE).set('Authorization', `Bearer ${token}`).send(payload);
@@ -62,10 +62,10 @@ describe('POST /residents (create)', () => {
   });
 
   it.each([
-    ['missing fullName', { email: 'a@b.com', password: 'Password123', unitNumber: 'A-1' }],
-    ['short password', { fullName: 'A', email: 'a@b.com', password: 'short', unitNumber: 'A-1' }],
-    ['invalid email', { fullName: 'A', email: 'not-an-email', password: 'Password123', unitNumber: 'A-1' }],
-    ['missing unitNumber', { fullName: 'A', email: 'a@b.com', password: 'Password123' }],
+    ['missing fullName', { email: 'a@b.com', password: 'Password123', unitNumber: 'A-1', phone: '0911000000', idNumber: 'ID-12345', ownerType: 'OWNER' }],
+    ['short password', { fullName: 'A', email: 'a@b.com', password: 'short', unitNumber: 'A-1', phone: '0911000000', idNumber: 'ID-12345', ownerType: 'OWNER' }],
+    ['invalid email', { fullName: 'A', email: 'not-an-email', password: 'Password123', unitNumber: 'A-1', phone: '0911000000', idNumber: 'ID-12345', ownerType: 'OWNER' }],
+    ['missing unitNumber', { fullName: 'A', email: 'a@b.com', password: 'Password123', phone: '0911000000', idNumber: 'ID-12345', ownerType: 'OWNER' }],
   ])('rejects invalid input: %s', async (_label, payload) => {
     const { admin } = await createCommunityWithAdmin();
     const { token } = await loginAs(admin.email, admin.plainPassword);

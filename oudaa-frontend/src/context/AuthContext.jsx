@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import api, { endpoints } from '../lib/api'
 import { notify } from '../components/ui'
 
-export const AuthContext = createContext(null)
+const AuthContext = createContext(null)
 
 const AVATAR_COLORS = ['#1554d6', '#2570f5', '#5aa4ff', '#a9caff', '#0c1c44']
 function avatarColorFor(id) {

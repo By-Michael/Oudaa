@@ -57,7 +57,7 @@ export default function PlatformLogin() {
           <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
-          <span className="font-display font-semibold text-lg tracking-tight">Hivee Platform</span>
+          <span className="font-display font-semibold text-lg tracking-tight">Oudaa Platform</span>
         </div>
 
         <div className="rounded-xl2 border border-ink-700 bg-ink-800/60 backdrop-blur shadow-card p-6">
@@ -74,7 +74,7 @@ export default function PlatformLogin() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-lg bg-ink-900 border border-ink-600 px-3 py-2 text-sm text-ink-50 placeholder:text-ink-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="you@hivee.internal"
+                    placeholder="you@oudaa.internal"
                   />
                 </Field>
                 <Field label="Password">

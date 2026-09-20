@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { PageHeader, StatCard, currency, formatDate, ChartPlaceholder, notify, usePagedList, Pager } from '../../components/ui'
 import { exportToExcel } from '../../lib/exportUtils'
+import { formatDateTime as formatCalendarDateTime, formatCurrentMonthLabel, currentCalendarDate, daysInEthiopianMonth, toEthiopian, getCalendarPreference, ETHIOPIAN_MONTHS } from '../../lib/ethiopianCalendar'
 
 const COLORS = ['#1554d6', '#2570f5', '#5aa4ff', '#a9caff', '#0c1c44']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -167,15 +168,27 @@ export default function ResidentReports() {
 
   // ---- Series for the tabbed contribution-trend card ----
   const now = new Date()
-  const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`
+  const monthLabel = formatCurrentMonthLabel(now)
+  const calendar = getCalendarPreference()
 
   const dailySeries = useMemo(() => {
+    if (calendar === 'ethiopian') {
+      const current = currentCalendarDate('ethiopian')
+      const totalDays = daysInEthiopianMonth(current.year, current.month)
+      const days = Array.from({ length: totalDays }, (_, i) => ({ day: String(i + 1).padStart(2, '0'), Contributions: 0, Fees: 0 }))
+      myPayments.forEach((p) => {
+        const e = toEthiopian(p.date)
+        if (!e || e.year !== current.year || e.month !== current.month) return
+        const bucket = days[e.day - 1]
+        if (!bucket) return
+        if (p.fundId) bucket.Contributions += p.amount
+        else bucket.Fees += p.amount
+      })
+      return days
+    }
+
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-    const days = Array.from({ length: daysInMonth }, (_, i) => ({
-      day: String(i + 1).padStart(2, '0'),
-      Contributions: 0,
-      Fees: 0,
-    }))
+    const days = Array.from({ length: daysInMonth }, (_, i) => ({ day: String(i + 1).padStart(2, '0'), Contributions: 0, Fees: 0 }))
     myPayments.forEach((p) => {
       const d = new Date(p.date)
       if (d.getFullYear() !== now.getFullYear() || d.getMonth() !== now.getMonth()) return
@@ -185,7 +198,7 @@ export default function ResidentReports() {
       else bucket.Fees += p.amount
     })
     return days
-  }, [myPayments])
+  }, [myPayments, calendar, now])
 
   const categorySeries = useMemo(() => {
     const byCat = {}
@@ -199,6 +212,23 @@ export default function ResidentReports() {
   }, [myPayments, fees, funds])
 
   const monthlySeries = useMemo(() => {
+    if (calendar === 'ethiopian') {
+      const current = currentCalendarDate('ethiopian')
+      const months = Array.from({ length: 6 }, (_, i) => {
+        let month = current.month - (5 - i)
+        let year = current.year
+        while (month < 1) { month += 13; year -= 1 }
+        return { key: `${year}-${month}`, month: ETHIOPIAN_MONTHS[month - 1], year, monthNumber: month, Total: 0 }
+      })
+      myPayments.forEach((p) => {
+        const e = toEthiopian(p.date)
+        if (!e) return
+        const bucket = months.find((m) => m.year === e.year && m.monthNumber === e.month)
+        if (bucket) bucket.Total += p.amount
+      })
+      return months
+    }
+
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
       return { key: `${d.getFullYear()}-${d.getMonth()}`, month: MONTH_NAMES[d.getMonth()], Total: 0 }
@@ -210,7 +240,7 @@ export default function ResidentReports() {
       if (bucket) bucket.Total += p.amount
     })
     return months
-  }, [myPayments])
+  }, [myPayments, calendar, now])
 
   return (
     <div>
@@ -240,7 +270,7 @@ export default function ResidentReports() {
                 meta: [
                   { label: 'Resident', value: me?.name || '—' },
                   { label: 'Unit', value: me?.unit || '—' },
-                  { label: 'Generated', value: new Date().toLocaleString('en-GB') },
+                  { label: 'Generated', value: formatCalendarDateTime(new Date()) },
                   { label: 'Total paid', value: currency(myTotalPaid) },
                 ],
                 columns: [

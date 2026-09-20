@@ -32,13 +32,15 @@ function isStubActive() {
 }
 
 // Providers whose universal detection needs a secondary field alongside
-// the reference. selfVerifyPayment collects these from the resident when
-// their chosen bank requires it (see paymentValidators.js). Neither of
-// Hivee's two supported providers (CBE, Telebirr) needs an account
-// suffix — CBE is receipt-only (see selfVerifyPayment's CBE branch) and
-// never reaches this check. Kept as a Set (rather than deleted outright)
-// since Veritas's own /verify-<provider> contract still supports it, in
-// case a provider needing it is ever reintroduced.
+// the reference, collected from the *resident* at submit time (see
+// paymentValidators.js) rather than auto-derived. Empty because neither
+// provider requires the resident to type one: Telebirr cross-checks the
+// sender's phone number instead (see PROVIDERS_NEEDING_PHONE below), and
+// CBE's suffix is auto-derived server-side from the community's receiving
+// account instead of being asked of the resident (see deriveAccountSuffix
+// in paymentController.js) — CBE still sends accountSuffix to Veritas
+// whenever a reference was resolved, it's just never on this list because
+// nothing here needs to *block submission* waiting on the resident for it.
 const PROVIDERS_NEEDING_SUFFIX = new Set([]);
 // Telebirr has no bank account — Veritas cross-checks the sender's phone
 // number instead of an account suffix.
@@ -85,9 +87,11 @@ function normalizeAmount(raw) {
  * @param {string} [params.expectedAccountNumber] - The community's receiving account.
  * @param {string} [params.provider] - Provider hint (cbe/telebirr). When
  *   omitted, Veritas's universal /verify route auto-detects.
- * @param {string} [params.suffix] - Account suffix. Not required by
- *   either provider Hivee currently supports; kept for Veritas API
- *   compatibility.
+ * @param {string} [params.suffix] - Account suffix. Telebirr doesn't use
+ *   this (phoneNumber instead). CBE isn't required to collect it from the
+ *   resident, but paymentController auto-derives one from the community's
+ *   receiving account (see deriveAccountSuffix) and passes it here so the
+ *   Veritas lookup has it.
  * @param {string} [params.phoneNumber] - 251-format phone, required by Telebirr.
  * @returns {Promise<{
  *   matched: boolean,

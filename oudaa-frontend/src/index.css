@@ -307,9 +307,3 @@
    backdrop to stay visible. */
 .brand-mark { background-color: transparent; box-shadow: none; }
 .dark .brand-mark { background-color: transparent; box-shadow: none; }
-
-/* Shared platform-console status helpers. */
-.badge-success { @apply bg-emerald-500/10 text-emerald-300 border border-emerald-500/30; }
-.badge-danger { @apply bg-red-500/10 text-red-300 border border-red-500/30; }
-.badge-neutral { @apply bg-ink-800 text-ink-300 border border-ink-700; }
-.icon-btn { @apply inline-flex items-center justify-center w-8 h-8 rounded-lg text-ink-400 hover:bg-ink-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 transition; }

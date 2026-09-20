@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Search, Wallet, Filter, Check, X as XIcon, Paperclip, Pencil, Trash2, FileText, AlertTriangle, UserX, SlidersHorizontal, Landmark } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { PageHeader, Modal, Badge, EmptyState, currency, formatDate, ConfirmDialog, notify, usePagedList, Pager, useDebouncedValue } from '../../components/ui'
+import { useCalendar } from '../../context/CalendarContext'
+import { ETHIOPIAN_MONTHS, toEthiopian, formatMonthKey } from '../../lib/ethiopianCalendar'
 
 const empty = { residentId: '', targetType: 'fee', feeId: '', projectId: '', amount: '', method: 'Bank Transfer', reference: '', receiptFile: null, paidForMonth: '' }
 
@@ -11,10 +13,7 @@ function monthKey(d) {
   const dt = d instanceof Date ? d : new Date(d)
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
 }
-function monthLabel(key) {
-  const [y, m] = key.split('-').map(Number)
-  return `${MONTH_NAMES[m - 1]} ${y}`
-}
+function monthLabel(key) { return formatMonthKey(key) }
 function addMonth(key) {
   const [y, m] = key.split('-').map(Number)
   const next = new Date(y, m, 1) // m is already "next month" in 0-indexed terms
@@ -293,6 +292,7 @@ function PaymentForm({ form, setForm, fees, projects, residents, showResidentPic
 }
 
 export default function Payments() {
+  const { calendar } = useCalendar()
   const { payments, residents, fees, projects, funds, addPayment, updatePayment, editPayment, removePayment, dataFullyLoaded, fullyLoaded } = useData()
   const [query, setQuery] = useState('')
   // The quick-search box re-filters the whole payments list on every
@@ -379,10 +379,15 @@ export default function Payments() {
     const years = new Set()
     for (const p of payments) {
       if (!p.date) continue
-      years.add(new Date(p.date).getFullYear())
+      const d = calendar === 'ethiopian' ? toEthiopian(p.date) : new Date(p.date)
+      years.add(calendar === 'ethiopian' ? d.year : d.getFullYear())
     }
     return Array.from(years).sort((a, b) => b - a)
-  }, [payments])
+  }, [payments, calendar])
+
+  const monthOptions = calendar === 'ethiopian'
+    ? ETHIOPIAN_MONTHS.map((label, idx) => [String(idx), label])
+    : MONTH_NAMES.map((label, idx) => [String(idx), label])
 
   // Anything sitting in 'pending' (basic unverified) or 'pending_review'
   // (bank lookup matched but a safeguard flagged it, or the verification
@@ -425,8 +430,9 @@ export default function Payments() {
         [residentOf(p.residentId)?.name, residentOf(p.residentId)?.unit, residentOf(p.residentId)?.phone]
           .join(' ').toLowerCase().includes(filters.residentQuery.trim().toLowerCase())
       const d = p.date ? new Date(p.date) : null
-      const matchesYear = filters.year === 'all' || (d && String(d.getFullYear()) === filters.year)
-      const matchesMonth = filters.month === 'all' || (d && String(d.getMonth()) === filters.month)
+      const calendarParts = p.date && calendar === 'ethiopian' ? toEthiopian(p.date) : null
+      const matchesYear = filters.year === 'all' || (d && (calendar === 'ethiopian' ? String(calendarParts.year) : String(d.getFullYear())) === filters.year)
+      const matchesMonth = filters.month === 'all' || (d && (calendar === 'ethiopian' ? String(calendarParts.month - 1) : String(d.getMonth())) === filters.month)
       const matchesTarget = filters.target === 'all' ||
         (targetFeeId && p.feeId === targetFeeId) ||
         (targetProjectId && p.projectId === targetProjectId)
@@ -441,7 +447,7 @@ export default function Payments() {
       return matchesQuery && matchesResident && matchesYear && matchesMonth && matchesTarget &&
         matchesStatus && matchesMethod && matchesMin && matchesMax
     }).sort((a, b) => new Date(b.date) - new Date(a.date))
-  }, [payments, debouncedQuery, filters, residentsById, feesById])
+  }, [payments, debouncedQuery, filters, residentsById, feesById, calendar])
 
   // ---- "Who hasn't paid" — residents with no non-rejected payment for
   // the selected fee within the selected period. This is the answer to
@@ -460,18 +466,20 @@ export default function Payments() {
         if (filters.year === 'all' && filters.month === 'all') return true
         if (!p.date) return false
         const d = new Date(p.date)
-        const matchesYear = filters.year === 'all' || String(d.getFullYear()) === filters.year
-        const matchesMonth = filters.month === 'all' || String(d.getMonth()) === filters.month
+        const calendarParts = calendar === 'ethiopian' ? toEthiopian(p.date) : null
+        const matchesYear = filters.year === 'all' || (calendar === 'ethiopian' ? String(calendarParts.year) : String(d.getFullYear())) === filters.year
+        const matchesMonth = filters.month === 'all' || (calendar === 'ethiopian' ? String(calendarParts.month - 1) : String(d.getMonth())) === filters.month
         return matchesYear && matchesMonth
       })
       return !hasPayment
     }).sort((a, b) => a.name.localeCompare(b.name))
-  }, [filters, residents, payments, selectedFeeId])
+  }, [filters, residents, payments, selectedFeeId, calendar])
 
   function periodLabel() {
     if (filters.year === 'all' && filters.month === 'all') return 'ever'
     if (filters.month === 'all') return filters.year
-    return `${MONTH_NAMES[Number(filters.month)]} ${filters.year === 'all' ? '' : filters.year}`.trim()
+    const names = calendar === 'ethiopian' ? ETHIOPIAN_MONTHS : MONTH_NAMES
+    return `${names[Number(filters.month)]} ${filters.year === 'all' ? '' : filters.year}`.trim()
   }
 
   // Jumps straight into "Record payment" prefilled for a non-payer found
@@ -781,7 +789,7 @@ export default function Payments() {
               <label className="label">Month</label>
               <select className="input" value={draft.month} onChange={(e) => setDraft({ ...draft, month: e.target.value })}>
                 <option value="all">All months</option>
-                {MONTH_NAMES.map((label, idx) => <option key={label} value={String(idx)}>{label}</option>)}
+                {monthOptions.map(([value, label]) => <option key={label} value={value}>{label}</option>)}
               </select>
             </div>
           </div>

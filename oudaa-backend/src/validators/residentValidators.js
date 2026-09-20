@@ -11,10 +11,10 @@ const createResidentSchema = z.object({
     // phone/idNumber/ownerType are required here to match the bulk-import
     // path (residentController.bulkImportResidents) — a resident record
     // created either way should have the same completeness.
-    phone: z.string().min(3).optional(),
-    idNumber: z.string().min(1).optional(),
+    phone: z.string().min(3),
+    idNumber: z.string().min(1),
     address: z.string().optional(),
-    ownerType: z.enum(['OWNER', 'RENTER']).optional(),
+    ownerType: z.enum(['OWNER', 'RENTER']),
   }),
 });
 

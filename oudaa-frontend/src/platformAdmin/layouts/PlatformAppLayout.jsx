@@ -80,13 +80,13 @@ export default function PlatformAppLayout() {
       const detail = event.detail || {}
       if (!detail.message) return
       setApiError(detail)
-      window.clearTimeout(window.__hiveePlatformErrorTimer)
-      window.__hiveePlatformErrorTimer = window.setTimeout(() => setApiError(null), 7000)
+      window.clearTimeout(window.__oudaaPlatformErrorTimer)
+      window.__oudaaPlatformErrorTimer = window.setTimeout(() => setApiError(null), 7000)
     }
-    window.addEventListener('hivee:platform-api-error', handler)
+    window.addEventListener('oudaa:platform-api-error', handler)
     return () => {
-      window.removeEventListener('hivee:platform-api-error', handler)
-      window.clearTimeout(window.__hiveePlatformErrorTimer)
+      window.removeEventListener('oudaa:platform-api-error', handler)
+      window.clearTimeout(window.__oudaaPlatformErrorTimer)
     }
   }, [])
 
@@ -117,7 +117,7 @@ export default function PlatformAppLayout() {
       >
         <div className="h-16 flex items-center gap-2 px-5 border-b border-ink-700">
           <div className="w-8 h-8 rounded-lg bg-brand-gradient" />
-          <span className="font-display font-semibold tracking-tight">Hivee Platform</span>
+          <span className="font-display font-semibold tracking-tight">Oudaa Platform</span>
           <button className="ml-auto lg:hidden text-ink-400" onClick={() => setMobileOpen(false)}>
             <X className="w-5 h-5" />
           </button>

@@ -92,7 +92,7 @@ function verifyTotp(base32Secret, token) {
   return false;
 }
 
-function buildOtpAuthUrl({ secret, accountEmail, issuer = 'Hivee Platform Admin' }) {
+function buildOtpAuthUrl({ secret, accountEmail, issuer = 'Oudaa Platform Admin' }) {
   const label = encodeURIComponent(`${issuer}:${accountEmail}`);
   const params = new URLSearchParams({
     secret,

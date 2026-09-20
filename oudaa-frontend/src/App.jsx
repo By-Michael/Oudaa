@@ -1,4 +1,4 @@
-import { useEffect, useState, Suspense, lazy } from 'react'
+import { useEffect, Suspense, lazy } from 'react'
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import AppLayout from './layouts/AppLayout'
@@ -12,11 +12,34 @@ import Signup from './pages/Signup'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import { Toaster } from './components/ui'
+
 import { PlatformAuthProvider } from './platformAdmin/context/PlatformAuthContext'
 import PlatformProtectedRoute from './platformAdmin/PlatformProtectedRoute'
 
-const PLATFORM_ONLY_BUILD = import.meta.env.VITE_APP_MODE === 'platform-admin'
+// Everything behind auth (admin/resident panels) is code-split so the
+// public landing/login pages don't have to download recharts, jspdf,
+// html2canvas etc. on first load. These only fetch once a user actually
+// signs in and navigates into the app shell.
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
+const AdminResidents = lazy(() => import('./pages/admin/Residents'))
+const AdminFees = lazy(() => import('./pages/admin/Fees'))
+const AdminPayments = lazy(() => import('./pages/admin/Payments'))
+const AdminFunds = lazy(() => import('./pages/admin/Funds'))
+const AdminProjects = lazy(() => import('./pages/admin/Projects'))
+const AdminExpenses = lazy(() => import('./pages/admin/Expenses'))
+const AdminReports = lazy(() => import('./pages/admin/Reports'))
+const AdminAuditLog = lazy(() => import('./pages/admin/AuditLog'))
 
+const ResidentDashboard = lazy(() => import('./pages/resident/Dashboard'))
+const ResidentPayments = lazy(() => import('./pages/resident/Payments'))
+const ResidentFunds = lazy(() => import('./pages/resident/Funds'))
+const ResidentProjects = lazy(() => import('./pages/resident/Projects'))
+const ResidentExpenses = lazy(() => import('./pages/resident/Expenses'))
+const ResidentReports = lazy(() => import('./pages/resident/Reports'))
+
+const Profile = lazy(() => import('./pages/shared/Profile'))
+
+const PLATFORM_ONLY_BUILD = import.meta.env.VITE_APP_MODE === 'platform-admin'
 const PlatformLogin = lazy(() => import('./platformAdmin/pages/PlatformLogin'))
 const PlatformAppLayout = lazy(() => import('./platformAdmin/layouts/PlatformAppLayout'))
 const PlatformDashboard = lazy(() => import('./platformAdmin/pages/PlatformDashboard'))
@@ -41,30 +64,6 @@ const PlatformSettings = lazy(() => import('./platformAdmin/pages/PlatformSettin
 const PlatformAudit = lazy(() => import('./platformAdmin/pages/PlatformAudit'))
 const PlatformIntegrations = lazy(() => import('./platformAdmin/pages/PlatformIntegrations'))
 const PlatformPerformance = lazy(() => import('./platformAdmin/pages/PlatformPerformance'))
-
-
-// Everything behind auth (admin/resident panels) is code-split so the
-// public landing/login pages don't have to download recharts, jspdf,
-// html2canvas etc. on first load. These only fetch once a user actually
-// signs in and navigates into the app shell.
-const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
-const AdminResidents = lazy(() => import('./pages/admin/Residents'))
-const AdminFees = lazy(() => import('./pages/admin/Fees'))
-const AdminPayments = lazy(() => import('./pages/admin/Payments'))
-const AdminFunds = lazy(() => import('./pages/admin/Funds'))
-const AdminProjects = lazy(() => import('./pages/admin/Projects'))
-const AdminExpenses = lazy(() => import('./pages/admin/Expenses'))
-const AdminReports = lazy(() => import('./pages/admin/Reports'))
-const AdminAuditLog = lazy(() => import('./pages/admin/AuditLog'))
-
-const ResidentDashboard = lazy(() => import('./pages/resident/Dashboard'))
-const ResidentPayments = lazy(() => import('./pages/resident/Payments'))
-const ResidentFunds = lazy(() => import('./pages/resident/Funds'))
-const ResidentProjects = lazy(() => import('./pages/resident/Projects'))
-const ResidentExpenses = lazy(() => import('./pages/resident/Expenses'))
-const ResidentReports = lazy(() => import('./pages/resident/Reports'))
-
-const Profile = lazy(() => import('./pages/shared/Profile'))
 
 function RouteFallback() {
   return (
@@ -136,28 +135,6 @@ function LegacyPortalRedirect() {
   return <Navigate to={portalBase(user)} replace />
 }
 
-
-function MaintenanceOverlay() {
-  const [notice, setNotice] = useState(null)
-  useEffect(() => {
-    const handler = (event) => setNotice(event.detail || { message: 'The platform is temporarily under maintenance.' })
-    window.addEventListener('oudaa:maintenance', handler)
-    return () => window.removeEventListener('oudaa:maintenance', handler)
-  }, [])
-  if (!notice) return null
-  return (
-    <div className="fixed inset-0 z-[100] bg-ink-950/95 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="max-w-lg w-full rounded-2xl border border-ink-700 bg-ink-900 p-8 text-center shadow-card">
-        <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-300 text-xl">!</div>
-        <h2 className="mt-5 text-xl font-semibold text-white">Maintenance in progress</h2>
-        <p className="mt-2 text-sm leading-6 text-ink-300">{notice.message}</p>
-        {notice.expectedDurationMinutes && <p className="mt-2 text-xs text-ink-500">Expected duration: {notice.expectedDurationMinutes} minutes.</p>}
-        <p className="mt-5 text-xs text-ink-500">Health monitoring and the platform operations console remain available.</p>
-      </div>
-    </div>
-  )
-}
-
 function CommunityApp() {
   const { user, bootstrapped } = useAuth()
 
@@ -172,7 +149,6 @@ function CommunityApp() {
   return (
     <>
       <Toaster />
-      <MaintenanceOverlay />
       <ScrollToTop />
       <Routes>
       <Route path="/" element={user ? <Navigate to={portalBase(user)} replace /> : <Landing />} />
@@ -231,17 +207,12 @@ function PlatformOnlyApp() {
   return (
     <PlatformAuthProvider>
       <Routes>
-        <Route
-          path="/platform-admin/login"
-          element={<Suspense fallback={<RouteFallback />}><PlatformLogin /></Suspense>}
-        />
+        <Route path="/platform-admin/login" element={<Suspense fallback={<RouteFallback />}><PlatformLogin /></Suspense>} />
         <Route
           path="/platform-admin/*"
           element={
             <PlatformProtectedRoute>
-              <Suspense fallback={<RouteFallback />}>
-                <PlatformAppLayout />
-              </Suspense>
+              <Suspense fallback={<RouteFallback />}><PlatformAppLayout /></Suspense>
             </PlatformProtectedRoute>
           }
         >

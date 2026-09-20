@@ -1,0 +1,46 @@
+# Render Blueprint example for the Oudaa backend.
+# Apply these settings to the backend service in Render.
+# Secrets such as DATABASE_URL and JWT keys must still be configured in Render.
+services:
+  - type: web
+    name: oudaa-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: PLATFORM_ADMIN_ENABLED
+        value: true
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: PLATFORM_ADMIN_CORS_ORIGIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: PLATFORM_JWT_ACCESS_SECRET
+        sync: false
+      - key: PLATFORM_JWT_REFRESH_SECRET
+        sync: false
+      - key: PLATFORM_MFA_ENCRYPTION_KEY
+        sync: false
+      - key: VERITAS_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_RECEIPTS_BUCKET
+        value: receipts
+      - key: SUPABASE_EXPORTS_BUCKET
+        value: platform-exports

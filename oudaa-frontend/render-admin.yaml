@@ -6,7 +6,7 @@ services:
   - type: web
     name: oudaa-platform-admin
     runtime: static
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
       - key: VITE_APP_MODE

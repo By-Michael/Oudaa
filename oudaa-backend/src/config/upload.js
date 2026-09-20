@@ -19,10 +19,11 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-// Separate in-memory multer instance for payment screenshots that only
-// ever pass through to the OCR service — they're never written to disk,
-// since we don't need to keep them (the resident still has to type/confirm
-// the txn ID, the screenshot is only a convenience autofill source).
+// Separate in-memory multer instance for payment screenshots. Still
+// memoryStorage since saveReceiptFile needs a buffer either way, but these
+// are now also persisted (see parsePaymentScreenshot in paymentController)
+// so a Telebirr receipt can be attached to the payment and viewed later,
+// same as CBE receipts.
 const screenshotUpload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {

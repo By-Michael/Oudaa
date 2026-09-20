@@ -8,7 +8,9 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useTheme } from '../../context/ThemeContext'
-import { PageHeader, Modal, notify } from '../../components/ui'
+import { useLanguage, LANGUAGE_OPTIONS } from '../../context/LanguageContext'
+import { useCalendar } from '../../context/CalendarContext'
+import { PageHeader, Modal, notify, formatDate } from '../../components/ui'
 import api, { endpoints, fileUrl } from '../../lib/api'
 import { NOTIFICATION_CATEGORIES, getNotificationPrefs, setNotificationPref } from '../../lib/notificationPrefs'
 
@@ -41,6 +43,7 @@ const TABS = [
 
 export default function Profile() {
   const { user } = useAuth()
+  const { t } = useLanguage()
   const location = useLocation()
   // An admin can switch into "resident view" (see AppLayout's "Switch to
   // resident view") without their account's actual role changing — so
@@ -490,6 +493,8 @@ const THEME_OPTIONS = [
 
 function PreferencesTab() {
   const { theme, setTheme } = useTheme()
+  const { language, setLanguage, t } = useLanguage()
+  const { calendar, setCalendar } = useCalendar()
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -507,6 +512,52 @@ function PreferencesTab() {
               }`}
             >
               <o.icon className="h-4 w-4" /> {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h3 className="font-semibold text-ink-800 flex items-center gap-2 mb-1">{t('settings.calendar', 'Calendar')}</h3>
+        <p className="text-xs text-ink-400 mb-4">{t('settings.calendar_description', 'Choose the calendar used throughout the platform. Your choice is saved to your account.')}</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setCalendar('gregorian')}
+            className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+              calendar === 'gregorian' ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-ink-200 text-ink-500 hover:bg-ink-50'
+            }`}
+          >
+            {t('settings.gregorian', 'Gregorian')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setCalendar('ethiopian')}
+            className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+              calendar === 'ethiopian' ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-ink-200 text-ink-500 hover:bg-ink-50'
+            }`}
+            lang="am"
+          >
+            {t('settings.ethiopian', 'የኢትዮጵያ ዘመን አቆጣጠር')}
+          </button>
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h3 className="font-semibold text-ink-800 flex items-center gap-2 mb-1">{t('settings.language', 'Language')}</h3>
+        <p className="text-xs text-ink-400 mb-4">{t('settings.language_description', 'Choose the language used throughout the platform. Your choice is saved to your account.')}</p>
+        <div className="flex gap-2">
+          {LANGUAGE_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => setLanguage(o.id)}
+              lang={o.id === 'am' ? 'am' : 'en'}
+              className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                language === o.id ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-ink-200 text-ink-500 hover:bg-ink-50'
+              }`}
+            >
+              {o.id === 'en' ? t('settings.english', o.label) : t('settings.amharic', o.label)}
             </button>
           ))}
         </div>
@@ -640,6 +691,7 @@ const emptyMethodForm = {
 const MAX_PAYMENT_METHODS = 2
 
 function PaymentsTab() {
+  const { t } = useLanguage()
   const { community, paymentMethods, pendingChanges, addPaymentMethod, updatePaymentMethod, removePaymentMethod, updateCommunity, cancelPendingChange } = useData()
   const [modal, setModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -753,7 +805,7 @@ function PaymentsTab() {
   }
 
   async function handleDelete(m) {
-    if (!window.confirm(`Remove "${m.label}"? Residents will no longer be able to pick it, but existing payments made through it are unaffected.`)) return
+    if (!window.confirm(t('shared_pages.remove_m_label_residents_will_no_longer_', `Remove "${m.label}"? Residents will no longer be able to pick it, but existing payments made through it are unaffected.`))) return
     setDeletingId(m.id)
     try {
       const result = await removePaymentMethod(m.id)
@@ -1148,7 +1200,7 @@ function ApprovalsTab({ user }) {
                     <p className="text-sm font-medium text-ink-700">{ct.label}</p>
                     {mineOn && mine && (
                       <p className="text-xs text-emerald-600 mt-0.5">
-                        On until {new Date(mine.expiresAt).toLocaleDateString()}
+                        On until {formatDate(mine.expiresAt)}
                         {mine.scopedToUserIds?.length > 0 && (
                           <> — only for {mine.scopedToUserIds
                             .map((id) => committeeMembers.find((m) => m.id === id)?.fullName || 'a former member')

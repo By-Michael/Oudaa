@@ -1,0 +1,23 @@
+# Separate static deployment for the internal platform-admin console.
+# Set VITE_PLATFORM_API_URL in the Render dashboard to the API origin
+# hosting /api/platform/v1. Keep PLATFORM_ADMIN_CORS_ORIGIN aligned with
+# the final admin custom domain on the backend.
+services:
+  - type: web
+    name: oudaa-platform-admin
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_APP_MODE
+        value: platform-admin
+      - key: VITE_PLATFORM_API_URL
+        sync: false
+    routes:
+      - type: redirect
+        source: /
+        destination: /platform-admin/login
+        permanent: false
+      - type: rewrite
+        source: /*
+        destination: /index.html

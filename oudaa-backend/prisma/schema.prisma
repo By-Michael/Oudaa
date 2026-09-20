@@ -22,6 +22,12 @@ enum ResidentStatus {
   MOVED_OUT
 }
 
+// Platform-admin-controlled only — see Community.status comment above.
+enum CommunityStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 enum FeeFrequency {
   ONE_TIME
   MONTHLY
@@ -107,6 +113,22 @@ model Community {
   slug        String   @unique
   address     String?
   contactInfo String?
+  // Platform-level operational status, set only by platform admins (see
+  // src/routes/platformAdmin) — NOT visible to or settable by the
+  // community's own admins/residents, and orthogonal to any
+  // community-internal concept. Checked at community login (see
+  // authController.js) so a suspended community can't be signed into
+  // again, but deliberately NOT checked in the hot-path authenticate
+  // middleware — adding a Community lookup to every authenticated
+  // request platform-wide is a real perf/behavior change outside Phase
+  // 2's scope (dashboard + search), so an already-issued token stays
+  // valid until it expires even after suspension. Enforcing immediate
+  // mid-session cutoff is a Communities-management feature for a later
+  // phase. Added now specifically so "active/suspended communities"
+  // counts on the platform dashboard are real, not fabricated.
+  status      CommunityStatus @default(ACTIVE)
+  suspendedAt DateTime?
+  suspendedReason String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -141,7 +163,11 @@ model Community {
   refreshTokens          RefreshToken[]
   passwordResetTokens    PasswordResetToken[]
   supportChatMessages    SupportChatMessage[]
+  supportTickets         SupportTicket[]
+  featureFlagTargets     PlatformFeatureFlagTarget[]
+  announcementTargets    PlatformAnnouncementTarget[]
 
+  @@index([status])
   @@map("communities")
 }
 
@@ -254,6 +280,8 @@ model User {
   autoApprovals             CommitteeAutoApproval[]
   auditLogs                 AuditLog[]
   supportChatSessions       SupportChatSession[]
+  supportTickets            SupportTicket[]
+  supportTicketMessages     SupportTicketMessage[]
 
   @@index([communityId])
   @@map("users")
@@ -286,6 +314,7 @@ model SupportChatSession {
 
   user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages SupportChatMessage[]
+  escalatedToTickets SupportTicket[]
 
   @@index([userId])
   @@index([communityId])
@@ -313,6 +342,152 @@ model SupportChatMessage {
   @@index([sessionId])
   @@index([communityId])
   @@map("support_chat_messages")
+}
+
+// ---------------------------------------------------------------------------
+// PLATFORM SUPPORT TICKETS (Phase 4)
+//
+// A real ticketing system, distinct from SupportChatSession/Message above
+// (which remain exactly what they were: a resident/admin's own saved AI
+// assistant conversations). A SupportTicket can optionally reference the
+// AI conversation it was escalated from (originConversationId) but is
+// otherwise a completely separate object — platform support staff work
+// tickets, not chat sessions, and nothing about this model changes how
+// the community-facing AI assistant behaves.
+//
+// SECURITY BOUNDARY: there is no community-facing route anywhere in this
+// codebase that reads SupportTicket/SupportTicketMessage. Every route that
+// touches these lives under src/routes/platformAdmin and requires
+// authenticatePlatformAdmin. Internal notes (SupportTicketMessage.isInternalNote)
+// are therefore never reachable by a community user by construction, not
+// by a runtime filter that could be forgotten on some future endpoint.
+// ---------------------------------------------------------------------------
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportTicketCategory {
+  ACCOUNT
+  PAYMENT
+  COMMUNITY
+  TECHNICAL
+  SECURITY
+  FINANCIAL
+  BUG
+  FEATURE_REQUEST
+  OTHER
+}
+
+model SupportTicket {
+  id          String                 @id @default(uuid())
+  // Nullable for the same reason Payment/SupportChatSession.communityId
+  // are — a ticket can in principle concern a user not yet tied to a
+  // community, or a community that was later removed.
+  communityId String?
+  userId      String
+  subject     String
+  description String                 @db.Text
+  status      SupportTicketStatus    @default(OPEN)
+  priority    SupportTicketPriority  @default(NORMAL)
+  category    SupportTicketCategory  @default(OTHER)
+  // The platform operator currently responsible for this ticket. Nullable
+  // — an unassigned ticket is a real, common state (see the "Unassigned"
+  // inbox section), not an error state.
+  assignedToId String?
+  // Set when this ticket was opened directly from an AI assistant
+  // conversation the user was already having (a human escalation) —
+  // distinct from a ticket a support agent or the platform itself opens
+  // with no prior AI conversation. Powers "AI vs human support" and
+  // "human escalations" analytics honestly, from a real link, rather than
+  // a guessed heuristic.
+  originConversationId String?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  // Last time ANY message (customer or agent) was added — drives
+  // "Waiting for user" bookkeeping and sorting the inbox by recency of
+  // activity rather than just creation date.
+  lastResponseAt DateTime?
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community         Community?           @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  assignedTo        PlatformAdmin?       @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  originConversation SupportChatSession? @relation(fields: [originConversationId], references: [id], onDelete: SetNull)
+  messages          SupportTicketMessage[]
+
+  @@index([communityId])
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id          String   @id @default(uuid())
+  ticketId    String
+  // Exactly one of these two is set, never both — enforced in
+  // application code (platformSupportTicketService.js), same pattern as
+  // several other "one of two possible authors" fields elsewhere in this
+  // schema (e.g. PendingChangeApproval).
+  authorUserId          String?
+  authorPlatformAdminId String?
+  // The customer/agent distinction the UI must always show clearly (Phase
+  // 4's explicit requirement) is fully determined by which author field
+  // is set — no separate redundant flag needed for that part. This flag
+  // covers the ORTHOGONAL distinction: even an agent's message can be a
+  // customer-visible reply or an internal-only note.
+  isInternalNote Boolean  @default(false)
+  body           String   @db.Text
+  createdAt      DateTime @default(now())
+  editedAt       DateTime?
+
+  ticket             SupportTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorUser         User?          @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  authorPlatformAdmin PlatformAdmin? @relation(fields: [authorPlatformAdminId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@map("support_ticket_messages")
+}
+
+// Real, append-only telemetry for the AI support assistant (Phase 4's
+// "request count / failures / latency / recent errors" requirement).
+// Nothing before this model existed to answer those questions honestly —
+// see supportAiAssistant.js, which previously only console.error'd
+// failures. Written best-effort (a logging failure must never break an
+// actual support response) from within that same file going forward;
+// history only exists from when this was added, which is disclosed
+// wherever these metrics are shown rather than implied to be complete.
+model SupportAiRequestLog {
+  id           String   @id @default(uuid())
+  provider     String   @default("groq")
+  model        String
+  success      Boolean
+  latencyMs    Int
+  errorMessage String?
+  sessionId    String?
+  userId       String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([success])
+  @@map("support_ai_request_logs")
 }
 
 // ---------------------------------------------------------------------------
@@ -928,4 +1103,504 @@ model CommitteeAutoApproval {
   @@unique([userId, changeType])
   @@index([communityId])
   @@map("committee_auto_approvals")
+}
+
+// ---------------------------------------------------------------------------
+// PLATFORM ADMINISTRATION — completely separate identity/auth boundary from
+// the community-facing User/ADMIN/RESIDENT system above. A PlatformAdmin is
+// an Oudaa *operator* (internal staff running the SaaS itself), never a
+// community's own committee member or resident, and has no `communityId` of
+// their own. Nothing here should ever be reachable via the community JWT
+// (see middleware/platformAdmin/authenticatePlatformAdmin.js), and nothing
+// on the community side should ever be reachable via a platform token — the
+// two are deliberately kept from sharing a session model, a cookie name, or
+// a JWT secret so a bug in one auth boundary can't fall through to the other.
+// ---------------------------------------------------------------------------
+
+// Granular role a platform operator is assigned. Permissions themselves are
+// defined in code (src/config/platformPermissions.js) as a role -> permission
+// map, not as a separate normalized table — Phase 1 only needs to *enforce*
+// permission checks, not let operators redefine what each role can do from
+// the UI (that would itself need its own audited change-control flow, out
+// of scope here). Keeping the mapping in version-controlled code also means
+// a permission change is itself code-reviewed and deployed, not a silent
+// runtime DB edit.
+enum PlatformRole {
+  SUPER_ADMIN
+  PLATFORM_ADMIN
+  SUPPORT_AGENT
+  OPERATIONS
+  SECURITY_AUDITOR
+  FINANCE_OPERATOR
+}
+
+model PlatformAdmin {
+  id           String       @id @default(uuid())
+  fullName     String
+  email        String       @unique
+  passwordHash String
+  role         PlatformRole @default(SUPPORT_AGENT)
+  isActive     Boolean      @default(true)
+
+  // --- MFA foundation (Phase 1: data model + verify/recovery flow; making
+  // it mandatory for privileged roles is enforced by requireMfa middleware
+  // once an operator has actually enrolled). Secret is stored encrypted at
+  // rest by the application layer (see utils/platformMfa.js), never in
+  // plaintext, and never returned by any API response.
+  mfaEnabled        Boolean   @default(false)
+  mfaSecretEnc      String?
+  // Hashed (not plaintext) one-time recovery codes, same pattern as
+  // password/refresh tokens elsewhere in this schema — a DB leak alone
+  // must not be usable to bypass MFA. Each entry is consumed (removed) on
+  // use.
+  mfaRecoveryCodeHashes Json? @default("[]")
+  mfaEnrolledAt     DateTime?
+
+  // --- login/lockout tracking
+  lastLoginAt          DateTime?
+  lastLoginIp          String?
+  lastFailedLoginAt    DateTime?
+  lastFailedLoginIp    String?
+  failedLoginCount     Int       @default(0)
+  lockedUntil          DateTime?
+
+  // --- Phase 6: forced re-credentialing, set by another SUPER_ADMIN via
+  // /platform-admins/:id/require-password-reset and
+  // /platform-admins/:id/require-mfa-reenrollment. Enforced by
+  // requireMustChangePassword / requireMfa respectively — a flagged admin
+  // can reach ONLY the endpoint needed to clear the flag until it's
+  // cleared, same "narrow escape hatch" pattern as mandatory-MFA-but-not-
+  // yet-enrolled in requireMfa.
+  mustChangePassword       Boolean   @default(false)
+  mfaReenrollmentRequired  Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions   PlatformAdminSession[]
+  auditLogs  PlatformAuditLog[]
+  supportViews PlatformSupportView[]
+  assignedSupportTickets SupportTicket[]
+  supportTicketMessages  SupportTicketMessage[]
+  notificationReads     PlatformNotificationRead[]
+  exportJobs             PlatformExportJob[]
+
+  @@index([role])
+  @@map("platform_admins")
+}
+
+// A single refresh/session record per logged-in device, mirroring the
+// community-side RefreshToken pattern (only a hash of the raw token is ever
+// stored) but kept in its own table so revoking/inspecting platform
+// sessions never touches — or is confused with — community sessions.
+// `mfaVerified` and `authTime` back requireMfa / requireRecentReauthentication:
+// a session only counts as MFA'd or "freshly authenticated" for as long as
+// this row says so, independent of the short-lived access token's own claims.
+model PlatformAdminSession {
+  id              String    @id @default(uuid())
+  platformAdminId String
+  tokenHash       String    @unique
+  ipAddress       String?
+  userAgent       String?
+  mfaVerified     Boolean   @default(false)
+  // When this session last completed a full password (+ MFA, if enabled)
+  // authentication — as opposed to merely refreshing an access token.
+  // requireRecentReauthentication compares "now" against this, not against
+  // createdAt, so a long-lived-but-idle session can be forced to
+  // re-authenticate before, e.g., changing another admin's role.
+  authenticatedAt DateTime  @default(now())
+  expiresAt       DateTime
+  revoked         Boolean   @default(false)
+  revokedAt       DateTime?
+  lastUsedAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+
+  platformAdmin PlatformAdmin @relation(fields: [platformAdminId], references: [id], onDelete: Cascade)
+
+  @@index([platformAdminId])
+  @@map("platform_admin_sessions")
+}
+
+// Append-only. Nothing in the platform-admin API surface may UPDATE or
+// DELETE a row here (see controllers/platformAdmin — there simply is no
+// such route), so the audit trail can't be edited from the admin UI even
+// by a SUPER_ADMIN.
+model PlatformAuditLog {
+  id              String    @id @default(uuid())
+  actorId         String?
+  actorEmail      String?
+  actorRole       PlatformRole?
+  action          String    // e.g. LOGIN_SUCCESS, LOGIN_FAILED, ROLE_CHANGED
+  entityType      String    // e.g. PlatformAdmin, PlatformAdminSession, Community
+  entityId        String?
+  // Set when the action concerned a specific tenant (e.g. COMMUNITY_VIEWED)
+  // — intentionally NOT a foreign key to Community. Platform audit history
+  // must survive a community being hard-deleted, and this table must never
+  // gain a write-path back into tenant data.
+  communityId     String?
+  description     String
+  metadata        Json?
+  ipAddress       String?
+  userAgent       String?
+  requestId       String?
+  success         Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  actor PlatformAdmin? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([communityId])
+  @@map("platform_audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// PLATFORM SUPPORT VIEW SESSIONS (Phase 3 — View-As)
+//
+// A short-lived, read-only "operator window" into a community user's account.
+// Each session is created explicitly by an authorized platform operator,
+// generates a PlatformAuditLog entry, carries a hard expiry, and can never
+// grant write access or expose secrets (passwordHash, mfaSecretEnc, etc.).
+// NOT a foreign key back to User (community tenant) because cross-schema
+// references weaken the tenant boundary; we store the user's id/email/role
+// as plain strings, same pattern as PlatformAuditLog.communityId.
+// ---------------------------------------------------------------------------
+model PlatformSupportView {
+  id              String    @id @default(uuid())
+  // Operator who initiated the view
+  operatorId      String
+  operatorEmail   String
+  // Target community user (NOT a FK — tenant boundary)
+  targetUserId    String
+  targetEmail     String
+  targetCommunityId String
+  // Every session has a hard deadline — checked server-side on every read
+  expiresAt       DateTime
+  // Revoked early (logout / admin revoke) even if not yet expired
+  revoked         Boolean   @default(false)
+  revokedAt       DateTime?
+  // Audit trail
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+
+  operator PlatformAdmin @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId])
+  @@index([targetUserId])
+  @@index([expiresAt])
+  @@map("platform_support_views")
+}
+
+// ---------------------------------------------------------------------------
+// PLATFORM PERFORMANCE MONITORING (Phase 5)
+//
+// PlatformMetricSnapshot: persisted every 5 minutes by the background
+// collector in server.js. Used for historical trend charts (7d/30d windows
+// where the in-memory ring buffer doesn't reach far enough).
+//
+// PlatformErrorLog: one row per 4xx/5xx response, written by the global
+// error handler. Safe by design: no request bodies, tokens, or stack traces;
+// endpoint is normalised to strip IDs (:id). Retained for 30 days
+// (purge at the application layer — no DB-level TTL in Postgres without
+// a scheduled job or pg_cron, so we simply query with a time filter and
+// expose a cleanup route for ops).
+// ---------------------------------------------------------------------------
+
+model PlatformMetricSnapshot {
+  id             String   @id @default(uuid())
+  timestamp      DateTime @default(now())
+  requestCount   Int
+  errorCount     Int
+  averageLatency Float
+  p95Latency     Float
+  cpuPercent     Float?
+  memoryUsedMb   Float
+  dbLatencyMs    Float?
+  activeSessions Int
+  collectedBy    String?  // e.g. "pid:12345" — not a secret; informational only
+
+  @@index([timestamp])
+  @@map("platform_metric_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// PLATFORM SECURITY SETTINGS (Phase 6)
+//
+// Single-row table (fixed id "default") holding the *adjustable* security
+// knobs — the ones that are genuinely safe to change at runtime through
+// the admin UI. Deliberately does NOT include the permission catalog or
+// role→permission map (see config/platformPermissions.js's header comment
+// for why those stay in code) and does NOT include MFA_MANDATORY_ROLES —
+// which roles MUST have MFA is a code-level security invariant, not a
+// runtime toggle. `mfaRequiredForAllAdmins` here is an ADDITIONAL,
+// operator-controlled layer on top of that hard-coded floor, never a way
+// to loosen it.
+// ---------------------------------------------------------------------------
+model PlatformSecuritySettings {
+  id String @id @default("default")
+
+  // Applied to newly-issued sessions going forward only (see
+  // platformAuthController) — does not retroactively shorten sessions
+  // already issued.
+  sessionDurationMinutes Int @default(43200) // 30 days
+
+  passwordMinLength        Int     @default(12)
+  passwordRequireUppercase Boolean @default(true)
+  passwordRequireNumber    Boolean @default(true)
+  passwordRequireSymbol    Boolean @default(false)
+
+  // Read by the platform auth rate limiter on every request (function-based
+  // `max`, see routes/platformAdmin/platformAuthRoutes.js), so this DOES
+  // take effect immediately without a process restart.
+  loginRateLimitMax           Int @default(10)
+  loginRateLimitWindowMinutes Int @default(15)
+
+  // Additional-only, see header comment above.
+  mfaRequiredForAllAdmins Boolean @default(false)
+
+  // Origins allowed to embed/call the platform console from, beyond the
+  // app's own CORS_ORIGIN env var. Informational/allow-list data for
+  // future enforcement points; not currently wired into the CORS
+  // middleware itself (see Phase 6 completion report — security
+  // limitations).
+  trustedOrigins Json @default("[]")
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@map("platform_security_settings")
+}
+
+
+// ---------------------------------------------------------------------------
+// PLATFORM OPERATIONS & CONTROL CENTER (Phase 7)
+// ---------------------------------------------------------------------------
+
+enum PlatformAnnouncementStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  EXPIRED
+  ARCHIVED
+}
+
+enum PlatformAnnouncementType {
+  INFO
+  WARNING
+  MAINTENANCE
+  SECURITY
+}
+
+enum PlatformNotificationSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum PlatformExportType {
+  COMMUNITIES
+  USERS
+  AUDIT_LOGS
+  SUPPORT_TICKETS
+  FINANCIAL_AGGREGATE
+}
+
+enum PlatformExportFormat {
+  CSV
+  XLSX
+  JSON
+}
+
+enum PlatformExportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+model PlatformFeatureFlag {
+  id                 String   @id @default(uuid())
+  key                String
+  description        String?
+  enabled            Boolean  @default(false)
+  environment        String   @default("production")
+  rolloutPercentage  Int      @default(100)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  targets PlatformFeatureFlagTarget[]
+
+  @@unique([key, environment])
+  @@index([environment])
+  @@index([enabled])
+  @@map("platform_feature_flags")
+}
+
+model PlatformFeatureFlagTarget {
+  featureFlagId String
+  communityId   String
+
+  featureFlag PlatformFeatureFlag @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
+  community   Community           @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@id([featureFlagId, communityId])
+  @@index([communityId])
+  @@map("platform_feature_flag_targets")
+}
+
+model PlatformMaintenance {
+  id                    String   @id @default("default")
+  enabled               Boolean  @default(false)
+  message               String   @default("The platform is temporarily unavailable while maintenance is performed.")
+  expectedDurationMins  Int?
+  allowPlatformAdmins   Boolean  @default(true)
+  allowSupportAgents    Boolean  @default(true)
+  enabledAt             DateTime?
+  disabledAt            DateTime?
+  updatedAt             DateTime @updatedAt
+  updatedById           String?
+
+  @@map("platform_maintenance")
+}
+
+model PlatformAnnouncement {
+  id           String                    @id @default(uuid())
+  title        String
+  message      String                    @db.Text
+  type         PlatformAnnouncementType  @default(INFO)
+  status       PlatformAnnouncementStatus @default(DRAFT)
+  scheduledFor DateTime?
+  publishedAt  DateTime?
+  expiresAt    DateTime?
+  targetAll    Boolean                   @default(true)
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  targets PlatformAnnouncementTarget[]
+
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([expiresAt])
+  @@map("platform_announcements")
+}
+
+model PlatformAnnouncementTarget {
+  announcementId String
+  communityId    String
+
+  announcement PlatformAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  community    Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, communityId])
+  @@index([communityId])
+  @@map("platform_announcement_targets")
+}
+
+model PlatformNotification {
+  id          String                       @id @default(uuid())
+  type        String
+  severity    PlatformNotificationSeverity @default(INFO)
+  title       String
+  message     String                       @db.Text
+  route       String?
+  metadata    Json?
+  createdAt   DateTime                     @default(now())
+  expiresAt   DateTime?
+
+  reads PlatformNotificationRead[]
+
+  @@index([createdAt])
+  @@index([severity])
+  @@map("platform_notifications")
+}
+
+model PlatformNotificationRead {
+  notificationId String
+  adminId        String
+  readAt         DateTime @default(now())
+
+  notification PlatformNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  admin        PlatformAdmin        @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, adminId])
+  @@index([adminId, readAt])
+  @@map("platform_notification_reads")
+}
+
+model PlatformExportJob {
+  id              String             @id @default(uuid())
+  type            PlatformExportType
+  format          PlatformExportFormat
+  status          PlatformExportStatus @default(QUEUED)
+  filters         Json?
+  requestedById   String
+  filePath        String?
+  contentType     String?
+  fileName        String?
+  sizeBytes       Int?
+  errorMessage    String?
+  createdAt       DateTime           @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  expiresAt       DateTime?
+
+  requestedBy PlatformAdmin @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([requestedById, createdAt])
+  @@map("platform_export_jobs")
+}
+
+model PlatformConfigSetting {
+  id          String   @id @default(uuid())
+  category    String
+  key         String
+  valueJson   Json?
+  description String?
+  isSensitive Boolean  @default(false)
+  managedBy   String   @default("DATABASE")
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@unique([category, key])
+  @@index([category])
+  @@map("platform_config_settings")
+}
+
+model PlatformIntegrationEvent {
+  id            String   @id @default(uuid())
+  integration   String
+  operation     String
+  success       Boolean
+  latencyMs     Int?
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+
+  @@index([integration, createdAt])
+  @@index([integration, success, createdAt])
+  @@map("platform_integration_events")
+}
+
+model PlatformErrorLog {
+  id              String   @id @default(uuid())
+  timestamp       DateTime @default(now())
+  requestId       String?  // X-Request-Id — links to logs and audit records
+  method          String
+  endpoint        String   // normalised (IDs replaced with :id)
+  statusCode      Int
+  errorCategory   String
+  errorMessage    String
+  communityId     String?  // NOT a FK — tenant boundary; null for platform-admin errors
+  userId          String?  // community user id — NOT a FK (same reason)
+  platformAdminId String?  // platform admin id — NOT a FK (same reason)
+  latencyMs       Int?
+
+  @@index([timestamp])
+  @@index([statusCode])
+  @@index([endpoint])
+  @@index([communityId])
+  @@map("platform_error_logs")
 }

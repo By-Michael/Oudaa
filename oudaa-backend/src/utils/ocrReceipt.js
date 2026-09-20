@@ -59,19 +59,14 @@ async function ocrSpaceParse(fileBuffer, mimetype, filename) {
 
 // ---- heuristic extraction over the raw OCR text ----
 
-// Priority 1: labeled field (Txn ID, Reference, FT No, etc.). The
-// captured value must contain at least one digit — real references/FT
-// numbers always do, but the loose version of this pattern used to also
-// grab any plain English word sitting right after the label (no colon
-// required between them), e.g. "Transaction" followed by an unrelated UI
-// label like "Action Required" would capture "Action" as the txnId.
-const TXN_LABEL_RE = /(?:txn|transaction|trans(?:fer)?|reference|ref(?:\s*no)?|ft\s*(?:no|#)?)\s*[:-]?\s*((?=[A-Z0-9-]*[0-9])[A-Z0-9-]{6,})/i;
+// Priority 1: labeled field (Txn ID, Reference, FT No, etc.)
+const TXN_LABEL_RE = /(?:txn|transaction|trans(?:fer)?|reference|ref(?:\s*no)?|ft\s*(?:no|#)?)\s*[:\-]?\s*([A-Z0-9\-]{6,})/i;
 // Priority 2: CBE FT-number pattern — starts with FT, 8–20 chars total.
 const CBE_FT_RE = /\bFT[A-Z0-9]{6,18}\b/i;
 // Priority 3: generic alphanumeric token (fallback).
 const GENERIC_TOKEN_RE = /\b(?=[A-Z0-9]{6,20}\b)(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{6,20}\b/;
 
-const NAME_LABEL_RE = /(?:sender|from|payer|account\s*name|name)\s*[:-]?\s*([A-Za-z][A-Za-z .'-]{2,60})/i;
+const NAME_LABEL_RE = /(?:sender|from|payer|account\s*name|name)\s*[:\-]?\s*([A-Za-z][A-Za-z .'\\-]{2,60})/i;
 
 function extractTxnId(text) {
   const labeled = text.match(TXN_LABEL_RE);
@@ -99,23 +94,21 @@ function extractName(text) {
  * }>}
  */
 async function parseReceiptImage(fileBuffer, mimetype, filename) {
-  // Optional path: a Groq vision model reads the screenshot directly, no
-  // OCR.space involved. Off by default (see GROQ_VISION_ENABLED in
-  // .env.example) — extractReceiptFieldsFromImage returns null immediately
-  // without any network call unless explicitly enabled, so this is a
-  // no-op on every request today and OCR.space below is the real path.
-  // Kept behind try/catch so that if it's ever enabled, a failed/misconfig
-  // call still falls back to OCR.space instead of failing the request.
+  // Primary path: a Groq vision model reads the screenshot directly, no
+  // OCR.space involved. Only attempted when GROQ_API_KEY is configured;
+  // returns null (not thrown) if unconfigured, and throws on a
+  // configured-but-failed call so we can fall back to OCR.space below
+  // instead of failing the whole request.
   try {
     const visionResult = await extractReceiptFieldsFromImage(fileBuffer, mimetype);
     if (visionResult) {
       return { ...visionResult, source: 'groq-vision', rawText: '' };
     }
   } catch (err) {
-    console.warn('[ocrReceipt] Groq vision extraction failed, falling back to OCR.space:', err.message);
+    console.error('[ocrReceipt] Groq vision extraction failed, falling back to OCR.space:', err.message);
   }
 
-  // Primary path: OCR.space extracts the raw text off the screenshot
+  // Fallback path: OCR.space extracts the raw text off the screenshot
   // first; Groq then classifies that text into structured fields (amount
   // vs. txn ID vs. sender name, etc.) — Groq never sees the image itself
   // here, only the text OCR.space already extracted. Used when the vision

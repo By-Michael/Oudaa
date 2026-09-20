@@ -17,6 +17,9 @@ const TABLES = [
   'users',
   'support_chat_sessions',
   'support_chat_messages',
+  'support_tickets',
+  'support_ticket_messages',
+  'support_ai_request_logs',
   'audit_logs',
   'refresh_tokens',
   'password_reset_tokens',
@@ -34,6 +37,13 @@ const TABLES = [
   'pending_changes',
   'pending_change_approvals',
   'committee_auto_approvals',
+  // Platform Administration tables — a separate identity/auth boundary
+  // (see prisma/schema.prisma) but still needs resetting between tests
+  // like every other table here.
+  'platform_admins',
+  'platform_admin_sessions',
+  'platform_audit_logs',
+  'platform_security_settings',
 ];
 
 /**

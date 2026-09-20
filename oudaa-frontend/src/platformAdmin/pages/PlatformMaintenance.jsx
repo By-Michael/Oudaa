@@ -1,0 +1,22 @@
+import { useEffect, useState } from 'react'
+import { ShieldCheck, Wrench, AlertTriangle } from 'lucide-react'
+import platformApi, { platformEndpoints } from '../lib/platformApi'
+
+export default function PlatformMaintenance() {
+  const [state, setState] = useState(null)
+  const [form, setForm] = useState({ enabled: false, message: '', expectedDurationMins: '', allowPlatformAdmins: true, allowSupportAgents: true, reason: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function load() { const { data } = await platformApi.get(platformEndpoints.maintenance()); setState(data.data); setForm({ enabled: data.data.enabled, message: data.data.message, expectedDurationMins: data.data.expectedDurationMins || '', allowPlatformAdmins: data.data.allowPlatformAdmins, allowSupportAgents: data.data.allowSupportAgents, reason: '' }) }
+  useEffect(() => { load() }, [])
+  async function save(e) {
+    e.preventDefault()
+    if (!form.reason.trim()) return alert('A reason is required for maintenance changes.')
+    if (form.enabled && !window.confirm('Enable maintenance mode now? Normal community API traffic will receive a controlled 503 maintenance response.')) return
+    setSaving(true)
+    try { await platformApi.patch(platformEndpoints.maintenance(), { ...form, expectedDurationMins: form.expectedDurationMins ? Number(form.expectedDurationMins) : null }); await load() } finally { setSaving(false) }
+  }
+
+  if (!state) return <div className="text-ink-500">Loading…</div>
+  return <div className="max-w-4xl space-y-5"><div><h1 className="text-2xl font-semibold text-white">Maintenance Mode</h1><p className="text-sm text-ink-400 mt-1">Controlled platform-wide maintenance with the platform console and health check kept available.</p></div><div className={`rounded-xl border p-4 flex items-start gap-3 ${state.enabled ? 'border-amber-500/30 bg-amber-500/10' : 'border-emerald-500/20 bg-emerald-500/5'}`}><div className="mt-0.5">{state.enabled ? <AlertTriangle className="w-5 h-5 text-amber-300" /> : <ShieldCheck className="w-5 h-5 text-emerald-300" />}</div><div><div className="font-semibold text-white">{state.enabled ? 'Maintenance is active' : 'Normal operations'}</div><div className="text-sm text-ink-300 mt-1">{state.enabled ? state.message : 'Community traffic is not being blocked by the maintenance controller.'}</div></div></div><form onSubmit={save} className="rounded-xl border border-ink-700 bg-ink-900 p-5 space-y-5"><label className="flex items-center gap-3"><input type="checkbox" checked={form.enabled} onChange={e => setForm({ ...form, enabled: e.target.checked })} /><span className="text-sm font-medium text-white">Enable maintenance mode</span></label><label><span className="label">Maintenance message</span><textarea className="input min-h-28" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} /></label><label><span className="label">Expected duration (minutes)</span><input type="number" min="1" className="input" value={form.expectedDurationMins} onChange={e => setForm({ ...form, expectedDurationMins: e.target.value })} /></label><div className="grid gap-3 sm:grid-cols-2"><label className="rounded-lg border border-ink-700 p-3 flex gap-3 items-start"><input type="checkbox" checked={form.allowPlatformAdmins} onChange={e => setForm({ ...form, allowPlatformAdmins: e.target.checked })} /><span><span className="block text-sm text-white">Allow platform admins</span><span className="text-xs text-ink-500">The separate platform-admin API is always excluded from community maintenance blocking.</span></span></label><label className="rounded-lg border border-ink-700 p-3 flex gap-3 items-start"><input type="checkbox" checked={form.allowSupportAgents} onChange={e => setForm({ ...form, allowSupportAgents: e.target.checked })} /><span><span className="block text-sm text-white">Allow support agents</span><span className="text-xs text-ink-500">Support remains on its separate platform-admin boundary.</span></span></label></div><label><span className="label">Reason</span><input required className="input" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} placeholder="Scheduled database maintenance" /></label><div className="flex justify-end"><button disabled={saving} className="btn-primary inline-flex items-center gap-2"><Wrench className="w-4 h-4" />{saving ? 'Saving…' : 'Save maintenance state'}</button></div></form></div>
+}

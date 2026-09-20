@@ -1,0 +1,13 @@
+'use strict';
+const express = require('express');
+const c = require('../../controllers/platformAdmin/platformMaintenanceController');
+const auth = require('../../middleware/platformAdmin/authenticatePlatformAdmin');
+const mfa = require('../../middleware/platformAdmin/requireMfa');
+const pwd = require('../../middleware/platformAdmin/requireMustChangePassword');
+const perm = require('../../middleware/platformAdmin/requirePlatformPermission');
+const reauth = require('../../middleware/platformAdmin/requireRecentReauthentication');
+const { PLATFORM_PERMISSIONS: P } = require('../../config/platformPermissions');
+const router = express.Router(); const chain = [auth, mfa, pwd];
+router.get('/', ...chain, perm(P.MAINTENANCE_MANAGE), c.get);
+router.patch('/', ...chain, reauth(10), perm(P.MAINTENANCE_MANAGE), c.update);
+module.exports = router;

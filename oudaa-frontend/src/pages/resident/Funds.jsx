@@ -192,7 +192,6 @@ export default function ResidentFunds() {
       const updates = {}
       if (result.name) updates.payerName = result.name
       if (result.txnId) updates.txnId = result.txnId
-      if (result.receiptUrl) updates.receiptUrl = result.receiptUrl
       if (Object.keys(updates).length) {
         setForm((f) => ({ ...f, ...updates }))
         setUseMyName(false)
@@ -245,7 +244,7 @@ export default function ResidentFunds() {
         provider: selectedMethod ? PROVIDER_TO_HINT[selectedMethod.provider] : undefined,
         txnId: isCbe ? undefined : form.txnId.trim(),
         phoneNumber: needsPhone ? form.phoneNumber.trim() : undefined,
-        receiptUrl: form.receiptUrl || undefined,
+        receiptUrl: isCbe ? form.receiptUrl : undefined,
         receiptReference: isCbe ? (receiptReference || undefined) : undefined,
       })
       setSuccessStatus(payment?.status || 'paid')
@@ -469,7 +468,7 @@ export default function ResidentFunds() {
                 <label className="label !mb-1.5">CBE e-receipt</label>
                 <p className="text-xs text-ink-400 mb-2.5">
                   Upload the screenshot or PDF receipt from your transfer, or paste a link to it — we'll
-                  extract the details and verify it automatically. If we can't extract them, a committee admin
+                  read the QR code and verify it automatically. If we can't read it, a committee admin
                   will confirm it against this contribution instead.
                 </p>
                 <div className="flex gap-1.5 mb-2.5">
@@ -503,8 +502,8 @@ export default function ResidentFunds() {
                     {form.receiptUrl && !receiptUploading && (
                       <p className={`mt-1.5 text-xs ${receiptReference ? 'text-emerald-600' : 'text-amber-600'}`}>
                         {receiptReference
-                          ? 'Details extracted successfully — this can be verified automatically.'
-                          : "Couldn't extract details from this file — it'll be queued for manual review."}
+                          ? 'QR code read successfully — this can be verified automatically.'
+                          : "Couldn't read a QR code off this file — it'll be queued for manual review."}
                       </p>
                     )}
                   </>

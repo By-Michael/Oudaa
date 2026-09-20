@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -87,23 +87,46 @@ const INITIAL_DATA = {
 }
 
 /* ------------------------------------------------------------------ */
-/* Email regex (shared by validateStep and goNext's on-demand check)   */
+/* Live email-availability check                                       */
 /* ------------------------------------------------------------------ */
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/
 
-/** Checks a single email against the backend. Returns true if available,
- *  false if taken, null if the check couldn't run (network / 404). */
-async function checkEmailAvailable(email) {
-  try {
-    const { data } = await api.get(endpoints.checkEmail(), { params: { email } })
-    return data?.data?.available !== false
-  } catch (err) {
-    // 404 = endpoint not deployed yet; other errors = network hiccup.
-    // In both cases we let the form through — server enforces uniqueness
-    // on final submit anyway.
-    return null
-  }
+/**
+ * Debounced "does this email already have an account" check against
+ * GET /auth/check-email. Skips the network call entirely until the input
+ * looks like a real email, and ignores any response that's been
+ * superseded by a newer edit — so fixing a typo right after a "taken"
+ * result can't leave a stale error on screen.
+ */
+function useEmailAvailability(rawEmail) {
+  const [status, setStatus] = useState('idle') // idle | checking | available | taken | error
+  const requestIdRef = useRef(0)
+
+  useEffect(() => {
+    const email = rawEmail.trim().toLowerCase()
+    if (!EMAIL_RE.test(email)) {
+      setStatus('idle')
+      return
+    }
+    const requestId = ++requestIdRef.current
+    setStatus('checking')
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get(endpoints.checkEmail(), { params: { email } })
+        if (requestIdRef.current !== requestId) return // a newer edit already superseded this check
+        setStatus(data?.data?.available ? 'available' : 'taken')
+      } catch {
+        if (requestIdRef.current !== requestId) return
+        // Network hiccup or rate limit — don't block the wizard on this;
+        // the real duplicate check still runs server-side on final submit.
+        setStatus('error')
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [rawEmail])
+
+  return status
 }
 
 /** Renders under an email input.
@@ -176,9 +199,14 @@ function Stepper({ step }) {
 /* Step 1 — Account                                                     */
 /* ------------------------------------------------------------------ */
 
-function StepAccount({ data, update, errors }) {
+function StepAccount({ data, update, errors, onEmailStatus }) {
   const [showPw, setShowPw] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const emailStatus = useEmailAvailability(data.email)
+
+  useEffect(() => {
+    onEmailStatus('admin', emailStatus)
+  }, [emailStatus, onEmailStatus])
 
   return (
     <div>
@@ -209,7 +237,7 @@ function StepAccount({ data, update, errors }) {
               value={data.email}
               onChange={(e) => update({ email: e.target.value })}
             />
-            {errors.email && <p className="mt-1.5 text-xs text-red-500">{errors.email}</p>}
+            <EmailStatusMessage status={emailStatus} syncError={errors.email} />
           </div>
           <div>
             <label className="label">Phone number<RequiredMark /></label>
@@ -457,7 +485,15 @@ function StepFees({ data, update, errors }) {
 /* Step 4 — Committee members                                          */
 /* ------------------------------------------------------------------ */
 
-function CommitteeMemberRow({ member, index, errors, updateMember, removeMember }) {
+function CommitteeMemberRow({ member, index, errors, updateMember, removeMember, onEmailStatus }) {
+  const emailStatus = useEmailAvailability(member.email)
+
+  useEffect(() => {
+    onEmailStatus(member.id, emailStatus)
+    // Clear this row's status out of the parent's map once it's removed,
+    // so a stale "taken" from a deleted row can never block Continue.
+    return () => onEmailStatus(member.id, 'idle')
+  }, [emailStatus, member.id, onEmailStatus])
 
   return (
     <div className="rounded-xl border border-ink-200 bg-ink-50 p-4 space-y-3 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
@@ -487,7 +523,7 @@ function CommitteeMemberRow({ member, index, errors, updateMember, removeMember 
             value={member.email}
             onChange={(e) => updateMember(member.id, { email: e.target.value })}
           />
-          {errors[`member_${index}_email`] && <p className="mt-1.5 text-xs text-red-500">{errors[`member_${index}_email`]}</p>}
+          <EmailStatusMessage status={emailStatus} syncError={errors[`member_${index}_email`]} />
         </div>
         <div>
           <label className="label">Phone number</label>
@@ -504,7 +540,7 @@ function CommitteeMemberRow({ member, index, errors, updateMember, removeMember 
   )
 }
 
-function StepCommittee({ data, update, errors }) {
+function StepCommittee({ data, update, errors, onEmailStatus }) {
   function addMember() {
     update({ committeeMembers: [...data.committeeMembers, makeCommitteeMember()] })
   }
@@ -531,7 +567,7 @@ function StepCommittee({ data, update, errors }) {
             errors={errors}
             updateMember={updateMember}
             removeMember={removeMember}
-  
+            onEmailStatus={onEmailStatus}
           />
         ))}
 
@@ -725,87 +761,54 @@ export default function Signup() {
   const [submitError, setSubmitError] = useState('')
   const [launchedSlug, setLaunchedSlug] = useState(null)
   const [launchWarnings, setLaunchWarnings] = useState([])
+  // Keyed by 'admin' or a committee member's row id -> 'idle' | 'checking' |
+  // 'available' | 'taken' | 'error'. Fed by each email field's live
+  // availability check (see useEmailAvailability) so Continue can be
+  // blocked on a taken email before the person ever reaches final submit.
+  const [emailStatus, setEmailStatusState] = useState({})
   const { adoptSession } = useAuth()
+
+  const setEmailStatus = useCallback((key, status) => {
+    setEmailStatusState((prev) => (prev[key] === status ? prev : { ...prev, [key]: status }))
+  }, [])
 
   function update(patch) {
     setData((prev) => ({ ...prev, ...patch }))
   }
 
   const [attempted, setAttempted] = useState(false)
-  // Taken-email errors discovered on Continue click via the API check.
-  // Keyed the same way as validateStep errors ('email', 'member_N_email').
-  const [takenErrors, setTakenErrors] = useState({})
-  // True while the on-demand email availability check runs after clicking Continue.
-  const [isEmailChecking, setIsEmailChecking] = useState(false)
-
-  // Clear stale taken-email errors whenever the relevant field changes so
-  // the user doesn't see a stale error after they correct their email.
-  useEffect(() => { setTakenErrors((p) => p.email ? { ...p, email: undefined } : p) }, [data.email])
-  useEffect(() => {
-    setTakenErrors((p) => {
-      const next = { ...p }
-      let changed = false
-      data.committeeMembers.forEach((_, i) => { if (next[`member_${i}_email`]) { delete next[`member_${i}_email`]; changed = true } })
-      return changed ? next : p
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.committeeMembers])
 
   const errors = useMemo(() => validateStep(step, data), [step, data])
-  const canAdvance = Object.keys(errors).length === 0 && Object.keys(takenErrors).length === 0
+  const asyncBlocked = useMemo(() => {
+    if (step === 1) return ['checking', 'taken'].includes(emailStatus.admin)
+    if (step === 4) return data.committeeMembers.some((m) => ['checking', 'taken'].includes(emailStatus[m.id]))
+    return false
+  }, [step, emailStatus, data.committeeMembers])
+
+  // True only while the background availability check is in-flight.
+  // Drives a spinner on the Continue button instead of inline field text.
+  const isEmailChecking = useMemo(() => {
+    if (step === 1) return emailStatus.admin === 'checking'
+    if (step === 4) return data.committeeMembers.some((m) => emailStatus[m.id] === 'checking')
+    return false
+  }, [step, emailStatus, data.committeeMembers])
+
+  const canAdvance = Object.keys(errors).length === 0 && !asyncBlocked
 
   // Only expose errors to step components after the user has clicked Continue.
-  const displayErrors = attempted ? { ...errors, ...takenErrors } : {}
+  // This prevents live inline validation while the user is still typing.
+  const displayErrors = attempted ? errors : {}
 
-  async function goNext() {
+  function goNext() {
     setAttempted(true)
-
-    // 1. Sync validation — show errors immediately if anything is missing/invalid.
-    const syncErrs = validateStep(step, data)
-    if (Object.keys(syncErrs).length > 0) return
-
-    // 2. Email availability — check only on steps that have email fields,
-    //    and only after sync validation passes (no point checking a bad email).
-    if (step === 1 || step === 4) {
-      setIsEmailChecking(true)
-      const taken = {}
-
-      if (step === 1) {
-        const email = data.email.trim().toLowerCase()
-        if (EMAIL_RE.test(email)) {
-          const available = await checkEmailAvailable(email)
-          if (available === false) taken.email = 'This email is already registered to another account.'
-        }
-      }
-
-      if (step === 4) {
-        for (let i = 0; i < data.committeeMembers.length; i++) {
-          const email = data.committeeMembers[i].email.trim().toLowerCase()
-          if (EMAIL_RE.test(email)) {
-            const available = await checkEmailAvailable(email)
-            if (available === false) taken[`member_${i}_email`] = 'This email is already registered to another account.'
-          }
-        }
-      }
-
-      setIsEmailChecking(false)
-
-      if (Object.keys(taken).length > 0) {
-        setTakenErrors(taken)
-        return
-      }
-    }
-
-    // 3. All clear — advance to the next step.
+    if (!canAdvance) return
+    // Valid — reset attempted flag for the next step, then advance
     setAttempted(false)
-    setTakenErrors({})
     if (step < 5) setStep(step + 1)
     else handleLaunch()
   }
-
   function goBack() {
     setAttempted(false)
-    setTakenErrors({})
     if (step > 1) setStep(step - 1)
   }
 
@@ -912,10 +915,10 @@ export default function Signup() {
           <>
             <Stepper step={step} />
             <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-card sm:p-8 dark:border-[#2e2e2e] dark:bg-white/[0.02]">
-              {step === 1 && <StepAccount data={data} update={update} errors={displayErrors} />}
+              {step === 1 && <StepAccount data={data} update={update} errors={displayErrors} onEmailStatus={setEmailStatus} />}
               {step === 2 && <StepCommunity data={data} update={update} errors={displayErrors} />}
               {step === 3 && <StepFees data={data} update={update} errors={displayErrors} />}
-              {step === 4 && <StepCommittee data={data} update={update} errors={displayErrors} />}
+              {step === 4 && <StepCommittee data={data} update={update} errors={displayErrors} onEmailStatus={setEmailStatus} />}
               {step === 5 && <StepReview data={data} onEdit={setStep} submitError={submitError} />}
 
               <div className="mt-8 flex items-center justify-between border-t border-ink-200 pt-6 dark:border-[#2e2e2e]">

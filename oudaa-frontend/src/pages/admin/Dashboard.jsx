@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext'
 import api, { endpoints } from '../../lib/api'
 import { StatCard, Badge, PageHeader, Modal, currency, currencyBalance, formatDate, notify, ChartPlaceholder, ChartEmptyState } from '../../components/ui'
 import { portalBase } from '../../lib/paths'
-import { formatMonthKey } from '../../lib/ethiopianCalendar'
 
 // Headline stat-card numbers and the 6-month trend chart come from
 // dedicated aggregate endpoints (DB-side SUM/COUNT/GROUP BY) instead of
@@ -15,7 +14,10 @@ import { formatMonthKey } from '../../lib/ethiopianCalendar'
 // dashboardController.getAdminDashboard on the backend. That's what used
 // to make this page take 10+ seconds to show real numbers on every login,
 // regardless of how fast the network/DB actually was.
-function monthLabel(key) { return formatMonthKey(key, undefined, { short: true, yearDigits: 'full' }).split(' ').slice(0, -1).join(' ') }
+function monthLabel(key) {
+  const [y, m] = key.split('-')
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-US', { month: 'short' })
+}
 
 const CHANGE_TYPE_LABELS = {
   COMMUNITY_PAYMENT_DETAILS: 'community payment account details',

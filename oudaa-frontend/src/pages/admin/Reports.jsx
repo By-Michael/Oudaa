@@ -13,7 +13,6 @@ import {
 } from '../../components/ui'
 import { exportToExcel, exportToPdf, exportRichPdf, captureChartImage } from '../../lib/exportUtils'
 import api, { endpoints } from '../../lib/api'
-import { formatMonthKey, formatDateTime as formatCalendarDateTime } from '../../lib/ethiopianCalendar'
 
 const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CARD', 'OTHER']
 function methodLabel(m) { return m === 'OTHER' ? 'Other' : m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }
@@ -30,7 +29,10 @@ function monthKey(d) {
   const dt = new Date(d)
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
 }
-function monthLabel(key) { return formatMonthKey(key, undefined, { short: true, yearDigits: '2' }) }
+function monthLabel(key) {
+  const [y, m] = key.split('-')
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
+}
 function inRange(dateStr, from, to) {
   if (!dateStr) return false
   const t = new Date(dateStr).getTime()
@@ -263,7 +265,7 @@ export default function Reports() {
   ]
   const residentMeta = [
     { label: 'Report', value: 'Residence Members' },
-    { label: 'Generated', value: formatCalendarDateTime(new Date()) },
+    { label: 'Generated', value: new Date().toLocaleString('en-GB') },
     { label: 'Filter · Status', value: residentStatus },
     { label: 'Filter · Search', value: residentSearch || 'none' },
     { label: 'Filter · Joined', value: `${residentJoinedFrom || 'all time'} → ${residentJoinedTo || 'now'}` },
@@ -292,7 +294,7 @@ export default function Reports() {
   ]
   const paymentMeta = [
     { label: 'Report', value: 'Collections / Payments' },
-    { label: 'Generated', value: formatCalendarDateTime(new Date()) },
+    { label: 'Generated', value: new Date().toLocaleString('en-GB') },
     { label: 'Range', value: `${payFrom || 'all time'} → ${payTo || 'now'}` },
     { label: 'Filter · Fee', value: payFee === 'all' ? 'all fees' : fees.find((f) => f.id === payFee)?.name || payFee },
     { label: 'Filter · Status', value: payStatus },
@@ -322,7 +324,7 @@ export default function Reports() {
   ]
   const expenseMeta = [
     { label: 'Report', value: 'Expenses' },
-    { label: 'Generated', value: formatCalendarDateTime(new Date()) },
+    { label: 'Generated', value: new Date().toLocaleString('en-GB') },
     { label: 'Range', value: `${expFrom || 'all time'} → ${expTo || 'now'}` },
     { label: 'Filter · Category', value: expCategory === 'all' ? 'all categories' : expCategory },
     { label: 'Filter · Project', value: expProject === 'all' ? 'all projects' : projects.find((p) => p.id === expProject)?.name || expProject },
@@ -347,7 +349,7 @@ export default function Reports() {
   ]
   const projectMeta = [
     { label: 'Report', value: 'Projects' },
-    { label: 'Generated', value: formatCalendarDateTime(new Date()) },
+    { label: 'Generated', value: new Date().toLocaleString('en-GB') },
     { label: 'Filter · Status', value: projStatus },
     { label: 'Filter · Fund', value: projFund === 'all' ? 'all funds' : funds.find((f) => f.id === projFund)?.name || projFund },
     { label: 'Filter · Start date', value: `${projStartFrom || 'all time'} → ${projStartTo || 'now'}` },

@@ -6,7 +6,6 @@ import {
   FilterPopover, FilterGrid, FilterField, FilterTextInput, FilterSelectInput, FilterDateInput,
 } from '../../components/ui'
 import { exportToExcel, exportToPdf } from '../../lib/exportUtils'
-import { formatDateTime as formatCalendarDateTime } from '../../lib/ethiopianCalendar'
 
 function inRange(dateStr, from, to) {
   if (!dateStr) return false
@@ -24,7 +23,10 @@ const ACTION_TONE = {
   REJECT: 'bg-rose-50 text-rose-600 ring-1 ring-rose-200',
 }
 
-function formatDateTime(d) { return formatCalendarDateTime(d) }
+function formatDateTime(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 export default function AuditLog() {
   const { fetchAuditLogs } = useData()
@@ -103,7 +105,7 @@ export default function AuditLog() {
 
   const auditMeta = [
     { label: 'Report', value: 'System Audit Log' },
-    { label: 'Generated', value: formatCalendarDateTime(new Date()) },
+    { label: 'Generated', value: new Date().toLocaleString('en-GB') },
     { label: 'Filter · Search', value: query || 'none' },
     { label: 'Filter · Action', value: filterAction === 'all' ? 'all actions' : filterAction },
     { label: 'Filter · Entity', value: filterEntity === 'all' ? 'all entities' : filterEntity },

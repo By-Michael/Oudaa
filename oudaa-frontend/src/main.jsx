@@ -15,11 +15,12 @@ if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'm
 
 function RootProviders() {
   if (PLATFORM_ONLY_BUILD) {
-    return (
-      <ThemeProvider>
-        <App />
-      </ThemeProvider>
-    )
+    // The standalone platform-admin build must not mount the community
+    // ThemeProvider: ThemeProvider consumes the community AuthContext,
+    // while platform-admin uses its own isolated PlatformAuthProvider.
+    // Mounting ThemeProvider here causes `useAuth must be used within
+    // AuthProvider` before the admin login page can render.
+    return <App />
   }
   return (
     <AuthProvider>

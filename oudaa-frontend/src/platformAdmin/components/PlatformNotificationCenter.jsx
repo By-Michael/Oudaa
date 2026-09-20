@@ -20,7 +20,7 @@ export default function PlatformNotificationCenter() {
       const { data } = await platformApi.get(platformEndpoints.notifications())
       setItems(data.data || [])
       setUnread(data.unreadCount || 0)
-    } catch {}
+    } catch (_e) {}
   }
 
   useEffect(() => { load(); const id = setInterval(load, 30_000); return () => clearInterval(id) }, [])

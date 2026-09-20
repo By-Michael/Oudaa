@@ -170,8 +170,9 @@ export default function ResidentPayments() {
     setReceiptUploading(true)
     setReceiptUploadError('')
     setOcrNote('')
+    let result
     try {
-      const result = await uploadSelfPaymentReceipt(file)
+      result = await uploadSelfPaymentReceipt(file)
       setReceiptFileName(file.name)
       // Backend runs OCR + Groq on the uploaded file and returns
       // extractedTxnId and extractedName. Auto-fill both if found —

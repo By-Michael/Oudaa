@@ -80,6 +80,47 @@ async function searchSupport(q) {
   }));
 }
 
+async function searchPlatformAdmins(q) {
+  const rows = await prisma.platformAdmin.findMany({
+    where: {
+      OR: [
+        { email: { contains: q, mode: 'insensitive' } },
+        { name: { contains: q, mode: 'insensitive' } },
+      ],
+    },
+    take: PER_CATEGORY_LIMIT,
+    select: { id: true, email: true, name: true, role: true },
+  });
+  return rows.map((a) => ({
+    type: 'platform_admin',
+    id: a.id,
+    title: a.name || a.email,
+    subtitle: `${a.email} · ${a.role}`,
+    link: `/platform-admin/admins/${a.id}`,
+  }));
+}
+
+async function searchSupportTickets(q) {
+  const rows = await prisma.supportTicket.findMany({
+    where: {
+      OR: [
+        { subject: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ],
+    },
+    take: PER_CATEGORY_LIMIT,
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, subject: true, status: true, createdAt: true },
+  });
+  return rows.map((t) => ({
+    type: 'support_ticket',
+    id: t.id,
+    title: t.subject,
+    subtitle: `${t.status} · ${new Date(t.createdAt).toLocaleDateString()}`,
+    link: `/platform-admin/support/tickets/${t.id}`,
+  }));
+}
+
 async function searchAudit(q) {
   const rows = await prisma.platformAuditLog.findMany({
     where: { OR: [{ action: { contains: q, mode: 'insensitive' } }, { description: { contains: q, mode: 'insensitive' } }] },

@@ -8,6 +8,15 @@ export default [
   { ignores: ['dist', 'build', 'node_modules'] },
   js.configs.recommended,
   {
+    // Node.js scripts (e.g. scripts/*.mjs) — no browser globals, no React
+    files: ['scripts/**/*.mjs', 'scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+  },
+  {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 'latest',

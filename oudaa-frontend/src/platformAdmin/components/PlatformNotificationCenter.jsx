@@ -20,18 +20,18 @@ export default function PlatformNotificationCenter() {
       const { data } = await platformApi.get(platformEndpoints.notifications())
       setItems(data.data || [])
       setUnread(data.unreadCount || 0)
-    } catch (_e) { /* silent – polling; errors are non-fatal */ }
+    } catch (_e) {}
   }
 
   useEffect(() => { load(); const id = setInterval(load, 30_000); return () => clearInterval(id) }, [])
 
   async function markRead(id) {
-    await platformApi.post(platformEndpoints.notificationRead(id)).catch(() => { /* silent */ })
+    await platformApi.post(platformEndpoints.notificationRead(id)).catch(() => {})
     await load()
   }
 
   async function markAllRead() {
-    await platformApi.post(platformEndpoints.notificationsReadAll()).catch(() => { /* silent */ })
+    await platformApi.post(platformEndpoints.notificationsReadAll()).catch(() => {})
     await load()
   }
 

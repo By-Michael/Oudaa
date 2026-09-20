@@ -25,6 +25,8 @@ export const PLATFORM_PERMISSIONS = {
   IMPERSONATION_VIEW: 'platform.impersonation.view',
   IMPERSONATION_USE: 'platform.impersonation.use',
   DATA_EXPORT_USE: 'platform.data_export.use',
+  ANNOUNCEMENTS_MANAGE: 'platform.announcements.manage',
+  NOTIFICATIONS_VIEW: 'platform.notifications.view',
   ADMINS_VIEW: 'platform.admins.view',
   ADMINS_MANAGE: 'platform.admins.manage',
 }
@@ -84,7 +86,6 @@ const ROLE_PERMISSIONS = {
   ],
   FINANCE_OPERATOR: [
     PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
-    PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
     PLATFORM_PERMISSIONS.PERFORMANCE_VIEW,
     PLATFORM_PERMISSIONS.DATA_EXPORT_USE,
     PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,

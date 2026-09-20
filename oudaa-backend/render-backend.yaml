@@ -21,7 +21,7 @@ services:
       - key: CORS_ORIGIN
         sync: false
       - key: PLATFORM_ADMIN_CORS_ORIGIN
-        sync: false
+        value: https://oudaa-platform-admin.onrender.com
       - key: FRONTEND_URL
         sync: false
       - key: JWT_ACCESS_SECRET

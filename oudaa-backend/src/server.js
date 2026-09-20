@@ -34,7 +34,6 @@ function assertProductionConfiguration() {
   const platformEnabled = String(process.env.PLATFORM_ADMIN_ENABLED || '').toLowerCase() === 'true';
   if (platformEnabled) {
     const platformRequired = [
-      ['PLATFORM_ADMIN_CORS_ORIGIN', 1],
       ['PLATFORM_JWT_ACCESS_SECRET', 32],
       ['PLATFORM_JWT_REFRESH_SECRET', 32],
       ['PLATFORM_MFA_ENCRYPTION_KEY', 32],

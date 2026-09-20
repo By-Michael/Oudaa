@@ -117,21 +117,44 @@ const communityCors = cors({
 // platform-admin routes simply refuse every cross-origin browser request
 // (same-origin/non-browser callers still work) rather than silently
 // reusing CORS_ORIGIN.
-const PLATFORM_ADMIN_CORS_ORIGINS = (process.env.PLATFORM_ADMIN_CORS_ORIGIN || '')
+function normalizeCorsOrigin(value) {
+  return String(value || '').trim().replace(/\/+$/, '');
+}
+
+const configuredPlatformAdminOrigins = String(process.env.PLATFORM_ADMIN_CORS_ORIGIN || '')
   .split(',')
-  .map((o) => o.trim())
+  .map(normalizeCorsOrigin)
   .filter(Boolean);
 
-if (PLATFORM_ADMIN_CORS_ORIGINS.length === 0 && process.env.NODE_ENV !== 'test') {
+// The public Free-tier Render admin site is a known frontend of this backend.
+// Keep an explicit environment override for custom domains/preview URLs, but
+// do not make the default deployment fail simply because the blueprint was
+// created before the env var was entered in Render's dashboard.
+const DEFAULT_PLATFORM_ADMIN_ORIGINS =
+  process.env.NODE_ENV === 'production'
+    ? ['https://oudaa-platform-admin.onrender.com']
+    : ['http://localhost:5174'];
+
+// Always retain the known admin deployment origin in addition to any
+// explicitly configured custom origins. This prevents an accidental stale
+// dashboard value from breaking the deployed console while still allowing
+// operators to add a custom domain explicitly.
+const PLATFORM_ADMIN_CORS_ORIGINS = [...new Set([
+  ...DEFAULT_PLATFORM_ADMIN_ORIGINS,
+  ...configuredPlatformAdminOrigins,
+])];
+
+if (configuredPlatformAdminOrigins.length === 0 && process.env.NODE_ENV !== 'test') {
   console.warn(
-    '[cors] PLATFORM_ADMIN_CORS_ORIGIN not set — the platform-admin console API will refuse ' +
-      'all cross-origin browser requests until this is configured (e.g. https://admin.example.com).'
+    `[cors] PLATFORM_ADMIN_CORS_ORIGIN not set — defaulting to ${PLATFORM_ADMIN_CORS_ORIGINS.join(', ')}. ` +
+      'Set PLATFORM_ADMIN_CORS_ORIGIN explicitly when using a custom admin domain.'
   );
 }
 
 const platformAdminCors = cors({
   origin(origin, callback) {
-    if (!origin || PLATFORM_ADMIN_CORS_ORIGINS.includes(origin)) return callback(null, true);
+    const normalizedOrigin = normalizeCorsOrigin(origin);
+    if (!origin || PLATFORM_ADMIN_CORS_ORIGINS.includes(normalizedOrigin)) return callback(null, true);
     callback(new Error(`Origin ${origin} not allowed by PLATFORM_ADMIN_CORS_ORIGIN`));
   },
   credentials: true,

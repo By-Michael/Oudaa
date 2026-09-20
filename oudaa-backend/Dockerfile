@@ -11,4 +11,4 @@ RUN npx prisma generate
 RUN mkdir -p uploads/receipts
 
 EXPOSE 4000
-CMD ["node", "src/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]

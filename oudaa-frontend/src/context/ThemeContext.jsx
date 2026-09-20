@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import api, { endpoints } from '../lib/api'
-import { AuthContext } from './AuthContext'
+import { useAuth } from './AuthContext'
 
 const ThemeContext = createContext(null)
 
@@ -51,14 +51,7 @@ function applyTheme(theme) {
 }
 
 export function ThemeProvider({ children }) {
-  // Read the context directly (not via the throwing useAuth() hook):
-  // the platform-admin build intentionally mounts ThemeProvider without
-  // an AuthProvider above it (see main.jsx), since that origin has no
-  // community user session at all. In that case ctx is null and we just
-  // fall back to the device-level theme below, same as a logged-out user.
-  const authCtx = useContext(AuthContext)
-  const user = authCtx?.user ?? null
-  const patchUser = authCtx?.patchUser ?? null
+  const { user, patchUser } = useAuth()
   // Initial theme, in priority order: (1) a signed-in user's saved
   // preference if we already have one on first render, (2) whatever this
   // device last had active (localStorage — this is what makes the login

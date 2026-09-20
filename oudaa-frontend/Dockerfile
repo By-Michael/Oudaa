@@ -1,10 +1,14 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 ARG VITE_API_URL
+ARG VITE_PLATFORM_API_URL
+ARG VITE_APP_MODE=community
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_PLATFORM_API_URL=${VITE_PLATFORM_API_URL}
+ENV VITE_APP_MODE=${VITE_APP_MODE}
 RUN npm run build
 
 FROM nginx:1.27-alpine

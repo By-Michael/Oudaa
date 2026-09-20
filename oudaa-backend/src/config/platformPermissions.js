@@ -1,0 +1,136 @@
+// Mirrors src/config/platformPermissions.js on the backend — duplicated
+// here (frontend and backend are separate packages/deploys) purely to
+// decide which nav items to SHOW. This is explicitly NOT a security
+// boundary: every actual API route independently enforces its own
+// permission server-side (see backend middleware/platformAdmin), so even
+// if this map ever drifts out of sync, the worst case is a nav item that
+// shows but 403s, or one that's hidden but the API would have allowed —
+// never unauthorized data exposure.
+const PLATFORM_PERMISSIONS = {
+  DASHBOARD_VIEW: 'platform.dashboard.view',
+  COMMUNITIES_VIEW: 'platform.communities.view',
+  COMMUNITIES_MANAGE: 'platform.communities.manage',
+  USERS_VIEW: 'platform.users.view',
+  USERS_MANAGE: 'platform.users.manage',
+  SUPPORT_VIEW: 'platform.support.view',
+  SUPPORT_MANAGE: 'platform.support.manage',
+  AUDIT_VIEW: 'platform.audit.view',
+  SECURITY_VIEW: 'platform.security.view',
+  SECURITY_MANAGE: 'platform.security.manage',
+  PERFORMANCE_VIEW: 'platform.performance.view',
+  SETTINGS_VIEW: 'platform.settings.view',
+  SETTINGS_MANAGE: 'platform.settings.manage',
+  FEATURE_FLAGS_MANAGE: 'platform.feature_flags.manage',
+  MAINTENANCE_MANAGE: 'platform.maintenance.manage',
+  IMPERSONATION_VIEW: 'platform.impersonation.view',
+  IMPERSONATION_USE: 'platform.impersonation.use',
+  DATA_EXPORT_USE: 'platform.data_export.use',
+  ANNOUNCEMENTS_MANAGE: 'platform.announcements.manage',
+  NOTIFICATIONS_VIEW: 'platform.notifications.view',
+  ADMINS_VIEW: 'platform.admins.view',
+  ADMINS_MANAGE: 'platform.admins.manage',
+}
+
+const ALL_PERMISSIONS = Object.values(PLATFORM_PERMISSIONS)
+
+const ROLE_PERMISSIONS = {
+  SUPER_ADMIN: new Set(ALL_PERMISSIONS),
+  PLATFORM_ADMIN: new Set([
+    PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
+    PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
+    PLATFORM_PERMISSIONS.COMMUNITIES_MANAGE,
+    PLATFORM_PERMISSIONS.USERS_VIEW,
+    PLATFORM_PERMISSIONS.USERS_MANAGE,
+    PLATFORM_PERMISSIONS.SUPPORT_VIEW,
+    PLATFORM_PERMISSIONS.SUPPORT_MANAGE,
+    PLATFORM_PERMISSIONS.AUDIT_VIEW,
+    PLATFORM_PERMISSIONS.PERFORMANCE_VIEW,
+    PLATFORM_PERMISSIONS.SETTINGS_VIEW,
+    PLATFORM_PERMISSIONS.FEATURE_FLAGS_MANAGE,
+    PLATFORM_PERMISSIONS.IMPERSONATION_VIEW,
+    PLATFORM_PERMISSIONS.IMPERSONATION_USE,
+    PLATFORM_PERMISSIONS.DATA_EXPORT_USE,
+    PLATFORM_PERMISSIONS.ANNOUNCEMENTS_MANAGE,
+    PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
+  ]),
+  SUPPORT_AGENT: new Set([
+    PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
+    PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
+    PLATFORM_PERMISSIONS.USERS_VIEW,
+    PLATFORM_PERMISSIONS.SUPPORT_VIEW,
+    PLATFORM_PERMISSIONS.SUPPORT_MANAGE,
+    PLATFORM_PERMISSIONS.IMPERSONATION_VIEW,
+    PLATFORM_PERMISSIONS.IMPERSONATION_USE,
+    PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
+  ]),
+  OPERATIONS: new Set([
+    PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
+    PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
+    PLATFORM_PERMISSIONS.PERFORMANCE_VIEW,
+    PLATFORM_PERMISSIONS.SETTINGS_VIEW,
+    PLATFORM_PERMISSIONS.FEATURE_FLAGS_MANAGE,
+    PLATFORM_PERMISSIONS.MAINTENANCE_MANAGE,
+    PLATFORM_PERMISSIONS.DATA_EXPORT_USE,
+    PLATFORM_PERMISSIONS.ANNOUNCEMENTS_MANAGE,
+    PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
+  ]),
+  SECURITY_AUDITOR: new Set([
+    PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
+    PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
+    PLATFORM_PERMISSIONS.USERS_VIEW,
+    PLATFORM_PERMISSIONS.AUDIT_VIEW,
+    PLATFORM_PERMISSIONS.SECURITY_VIEW,
+    PLATFORM_PERMISSIONS.SECURITY_MANAGE,
+    PLATFORM_PERMISSIONS.ADMINS_VIEW,
+    PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
+  ]),
+  FINANCE_OPERATOR: new Set([
+    PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
+    PLATFORM_PERMISSIONS.PERFORMANCE_VIEW,
+    PLATFORM_PERMISSIONS.DATA_EXPORT_USE,
+    PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
+  ]),
+}
+
+function roleHasPermission(role, permission) {
+  return ROLE_PERMISSIONS[role]?.has(permission) || false
+}
+
+// Roles that must have MFA enabled — a code constant, not a runtime
+// setting (see requireMfa.js middleware, which also honors a separate
+// mfaRequiredForAllAdmins org-wide setting on top of this).
+const MFA_MANDATORY_ROLES = ['SUPER_ADMIN', 'SECURITY_AUDITOR']
+
+function isMfaMandatoryForRole(role) {
+  return MFA_MANDATORY_ROLES.includes(role)
+}
+
+const ASSIGNABLE_ROLES = Object.keys(ROLE_PERMISSIONS)
+
+function getPermissionsForRole(role) {
+  return ROLE_PERMISSIONS[role] || new Set()
+}
+
+// A role can grant another role only if the target role's permissions
+// are entirely covered by the granter's own permissions — this blocks
+// self-escalation (e.g. a PLATFORM_ADMIN could never grant SUPER_ADMIN,
+// since SUPER_ADMIN has permissions PLATFORM_ADMIN lacks).
+function canRoleGrantRole(granterRole, targetRole) {
+  if (!Object.prototype.hasOwnProperty.call(ROLE_PERMISSIONS, granterRole) || !Object.prototype.hasOwnProperty.call(ROLE_PERMISSIONS, targetRole)) {
+    return false;
+  }
+  const granterPermissions = getPermissionsForRole(granterRole);
+  const targetPermissions = getPermissionsForRole(targetRole);
+  return [...targetPermissions].every((permission) => granterPermissions.has(permission));
+}
+
+module.exports = {
+  PLATFORM_PERMISSIONS,
+  ALL_PERMISSIONS,
+  ROLE_PERMISSIONS,
+  roleHasPermission,
+  isMfaMandatoryForRole,
+  ASSIGNABLE_ROLES,
+  getPermissionsForRole,
+  canRoleGrantRole,
+}

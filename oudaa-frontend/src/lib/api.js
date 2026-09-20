@@ -74,6 +74,10 @@ api.interceptors.response.use(
       }
     }
 
+    if (response?.status === 503 && response?.data?.maintenance) {
+      window.dispatchEvent(new CustomEvent('oudaa:maintenance', { detail: response.data }))
+    }
+
     if (response?.status === 401 && (isAuthRoute ? config.url === endpoints.refresh() : true)) {
       clearSession()
     }
@@ -188,6 +192,7 @@ export const endpoints = {
   supportChat: () => '/support/chat',
   supportChatSessions: () => '/support/chat/sessions',
   supportChatSession: (id) => `/support/chat/sessions/${id}`,
+  platformAnnouncements: () => '/announcements/active',
 }
 
 // Uploaded files (receipts) are served from the API host's root

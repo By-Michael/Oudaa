@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, AlertTriangle, CheckCircle2, Info, Filter, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, AlertTriangle, CheckCircle2, Info, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useCalendar } from '../context/CalendarContext'
-import {
-  ETHIOPIAN_MONTHS, ETHIOPIAN_WEEKDAYS, daysInEthiopianMonth, currentCalendarDate,
-  ethiopianToIsoDate, isoDateToEthiopian, weekdayMondayFirst, formatDate as formatCalendarDate,
-} from '../lib/ethiopianCalendar'
 
 // ---------------------------------------------------------------------------
 // In-app toast notifications — replaces native window.alert()/confirm()
@@ -332,99 +327,11 @@ export function FilterSelectInput({ value, onChange, options }) {
   )
 }
 
-// Compact calendar-aware date input. Gregorian mode uses the browser's
-// native date control; Ethiopian mode uses the same stored ISO/Gregorian value
-// but presents and selects an Ethiopian date with Amharic month names.
-export function CalendarDateInput({ value, onChange, className = filterFieldCls }) {
-  const { calendar } = useCalendar()
-  const [open, setOpen] = useState(false)
-  const initial = value ? isoDateToEthiopian(value) : currentCalendarDate('ethiopian')
-  const [view, setView] = useState(initial || { year: 2018, month: 1, day: 1 })
-
-  useEffect(() => {
-    if (!value) {
-      const next = currentCalendarDate(calendar === 'ethiopian' ? 'ethiopian' : 'gregorian')
-      if (calendar === 'ethiopian') setView(next)
-      return
-    }
-    const next = calendar === 'ethiopian' ? isoDateToEthiopian(value) : null
-    if (next) setView(next)
-  }, [value, calendar])
-
-  if (calendar !== 'ethiopian') {
-    return <input type="date" className={className} value={value} onChange={(e) => onChange(e.target.value)} />
-  }
-
-  const selected = value ? isoDateToEthiopian(value) : null
-  const firstOffset = weekdayMondayFirst(...Object.values({ year: view.year, month: view.month, day: 1 }))
-  const days = Array.from({ length: daysInEthiopianMonth(view.year, view.month) }, (_, i) => i + 1)
-
-  function moveMonth(delta) {
-    let year = view.year
-    let month = view.month + delta
-    if (month < 1) { month = 13; year -= 1 }
-    if (month > 13) { month = 1; year += 1 }
-    setView({ year, month, day: 1 })
-  }
-
-  function choose(day) {
-    onChange(ethiopianToIsoDate(view.year, view.month, day))
-    setOpen(false)
-  }
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        className={`${className} text-left flex items-center justify-between gap-2`}
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-      >
-        <span className={value ? 'text-ink-800 dark:text-ink-100' : 'text-ink-400'}>
-          {selected ? `${ETHIOPIAN_MONTHS[selected.month - 1]} ${selected.day}, ${selected.year} ዓ.ም.` : 'ቀን ይምረጡ'}
-        </span>
-        <CalendarDays className="h-4 w-4 text-ink-400" />
-      </button>
-
-      {open && (
-        <div className="absolute z-[80] mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-2xl border border-ink-200 bg-white p-3 shadow-xl dark:bg-[#1e1e1e] dark:border-[#383838]" role="dialog" aria-label="የኢትዮጵያ ቀን መምረጫ" lang="am">
-          <div className="flex items-center justify-between mb-3">
-            <button type="button" onClick={() => moveMonth(-1)} className="h-8 w-8 rounded-lg hover:bg-ink-50 dark:hover:bg-white/[0.06] flex items-center justify-center" aria-label="ቀድሞው ወር">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="text-sm font-semibold text-ink-800 dark:text-ink-100">{ETHIOPIAN_MONTHS[view.month - 1]} {view.year} ዓ.ም.</div>
-            <button type="button" onClick={() => moveMonth(1)} className="h-8 w-8 rounded-lg hover:bg-ink-50 dark:hover:bg-white/[0.06] flex items-center justify-center" aria-label="ቀጣዩ ወር">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {ETHIOPIAN_WEEKDAYS.map((day) => <div key={day} className="text-center text-[10px] font-semibold text-ink-400 py-1">{day}</div>)}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: firstOffset }).map((_, i) => <div key={`empty-${i}`} />)}
-            {days.map((day) => {
-              const active = selected && selected.year === view.year && selected.month === view.month && selected.day === day
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => choose(day)}
-                  className={`h-9 rounded-lg text-xs font-medium transition ${active ? 'bg-brand-gradient text-white' : 'text-ink-700 hover:bg-brand-50 dark:text-ink-200 dark:hover:bg-white/[0.06]'}`}
-                >
-                  {day}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
+// Compact date input for use inside a FilterField/FilterGrid.
 export function FilterDateInput({ value, onChange }) {
-  return <CalendarDateInput value={value} onChange={onChange} />
+  return (
+    <input type="date" className={filterFieldCls} value={value} onChange={(e) => onChange(e.target.value)} />
+  )
 }
 
 // Compact number input (for amount/budget ranges) for use inside a
@@ -626,5 +533,6 @@ export function currencyBalance(n, shortfallLabel) {
 }
 
 export function formatDate(d) {
-  return formatCalendarDate(d)
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }

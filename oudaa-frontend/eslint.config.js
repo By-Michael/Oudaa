@@ -8,7 +8,16 @@ export default [
   { ignores: ['dist', 'build', 'node_modules'] },
   js.configs.recommended,
   {
-    files: ['**/*.{js,jsx,mjs}'],
+    // Node.js scripts (e.g. scripts/*.mjs) — no browser globals, no React
+    files: ['scripts/**/*.mjs', 'scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+  },
+  {
+    files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -41,6 +50,9 @@ export default [
       // Cosmetic-only (flags plain ' and " in JSX text); not worth the noise.
       'react/no-unescaped-entities': 'off',
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      // Empty catch blocks are intentional in this codebase (fire-and-forget
+      // background calls like preference saves, polling, and logout).
+      'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
 ]

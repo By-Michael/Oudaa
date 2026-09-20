@@ -6,8 +6,6 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { PageHeader, Modal, Badge, EmptyState, currency, formatDate, usePagedList, Pager } from '../../components/ui'
-import { useLanguage } from '../../context/LanguageContext'
-import { formatMonthKey } from '../../lib/ethiopianCalendar'
 
 // Maps a CommunityPaymentMethod's `provider` enum (DB value) to the
 // lowercase hint the backend's self-verify endpoint expects (see
@@ -30,7 +28,10 @@ function describeForMonth(paidForMonth) {
   if (!paidForMonth) return null
   const keys = paidForMonth.split(',').filter(Boolean)
   if (keys.length === 0) return null
-  const label = (key) => formatMonthKey(key)
+  const label = (key) => {
+    const [y, m] = key.split('-').map(Number)
+    return `${MONTH_NAMES[m - 1]} ${y}`
+  }
   const now = new Date()
   const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const isFuture = keys.some((k) => k > nowKey)
@@ -86,7 +87,6 @@ const emptyForm = { feeId: '', paymentMethodId: '', payerName: '', txnId: '', ph
 
 export default function ResidentPayments() {
   const { user } = useAuth()
-  const { t } = useLanguage()
   const {
     payments, fees, residents, community, paymentMethods,
     submitSelfPayment, uploadSelfPaymentReceipt, retractPayment, parsePaymentScreenshot, loadError, loading,
@@ -115,18 +115,16 @@ export default function ResidentPayments() {
   const [receiptAmount, setReceiptAmount] = useState(null)
   const fileInputRef = useRef(null)
 
-  // CBE-only: resident uploads their e-receipt (image/PDF) — backend runs
-  // OCR (OCR.space) then Groq to auto-fill transaction ID and name. Upload
-  // is always visible; no receipt link input (links can't be verified
-  // reliably).
+  // CBE-only: resident uploads their e-receipt (image/PDF) — backend reads
+  // the QR code and auto-fills transaction ID and name. Upload is always
+  // visible; no receipt link input (links can't be verified reliably).
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptFileName, setReceiptFileName] = useState('')
   const [receiptUploadError, setReceiptUploadError] = useState('')
   const receiptInputRef = useRef(null)
-  // Set when the uploaded receipt resolves to a CBE reference via
-  // OCR/Groq extraction — sent as receiptReference so the backend can
-  // bank-verify the payment instantly instead of queuing it for manual
-  // review.
+  // Set when the uploaded receipt resolves to a CBE reference via QR/OCR —
+  // sent as receiptReference so the backend can bank-verify the payment
+  // instantly instead of queuing it for manual review.
   const [receiptReference, setReceiptReference] = useState('')
 
   const selectedFee = fees.find((f) => f.id === form.feeId)
@@ -226,7 +224,6 @@ export default function ResidentPayments() {
       const updates = {}
       if (result.name) updates.payerName = result.name
       if (result.txnId) updates.txnId = result.txnId
-      if (result.receiptUrl) updates.receiptUrl = result.receiptUrl
       if (Object.keys(updates).length) {
         setForm((f) => ({ ...f, ...updates }))
         setUseMyName(false)
@@ -287,7 +284,7 @@ export default function ResidentPayments() {
         provider: selectedMethod ? PROVIDER_TO_HINT[selectedMethod.provider] : undefined,
         txnId: form.txnId.trim(),
         phoneNumber: needsPhone ? form.phoneNumber.trim() : undefined,
-        receiptUrl: form.receiptUrl || undefined,
+        receiptUrl: isCbe ? form.receiptUrl : undefined,
         receiptReference: isCbe ? (receiptReference || undefined) : undefined,
       })
       setSuccessStatus(payment?.status || 'paid')
@@ -322,7 +319,7 @@ export default function ResidentPayments() {
   const [retractError, setRetractError] = useState('')
 
   async function handleRetract(id) {
-    if (!window.confirm(t('resident_portal.retract_this_payment_this_can_t_be_undon', "Retract this payment? This can't be undone — you'll need to resubmit if it was actually correct."))) return
+    if (!window.confirm("Retract this payment? This can't be undone — you'll need to resubmit if it was actually correct.")) return
     setRetractingId(id)
     setRetractError('')
     try {
@@ -551,7 +548,7 @@ export default function ResidentPayments() {
                 <div className="rounded-xl border border-dashed border-brand-200 bg-brand-50/40 p-3.5">
                   <label className="label !mb-1.5">CBE e-receipt</label>
                   <p className="text-xs text-ink-400 mb-3">
-                    Upload your e-receipt screenshot or PDF — we'll extract the transaction ID and name automatically. If we can't extract them, a committee admin will confirm it manually.
+                    Upload your e-receipt screenshot or PDF — we'll read the QR code and fill in the transaction ID and name automatically. If we can't read the QR code, a committee admin will confirm it manually.
                   </p>
 
                   <input ref={receiptInputRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={handleReceiptUpload} />
@@ -574,8 +571,8 @@ export default function ResidentPayments() {
                   {receiptFileName && form.receiptUrl && !receiptUploading && !ocrLoading && (
                     <p className={`mt-1.5 text-xs ${receiptReference ? 'text-emerald-600' : 'text-amber-600'}`}>
                       {receiptReference
-                        ? 'Transaction ID extracted — filled in automatically.'
-                        : "Couldn't extract details from this file — it'll be queued for manual review."}
+                        ? 'QR code read — transaction ID filled in automatically.'
+                        : "Couldn't read a QR code off this file — it'll be queued for manual review."}
                     </p>
                   )}
                   {ocrNote && !receiptUploading && !ocrLoading && (

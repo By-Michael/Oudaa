@@ -1167,4 +1167,4 @@ async function runToolLoop(apiKey, model, messages, tools, executors, ctx, { all
   return "I looked into that but couldn't pin down a confident answer in time — try narrowing the question (a specific resident name, fee, or month).";
 }
 
-module.exports = { runSupportChat, isConfigured };
+module.exports = { runSupportChat, isConfigured, SUPPORT_MODEL, SUPPORT_MODEL_CHAIN };

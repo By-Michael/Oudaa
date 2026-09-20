@@ -162,7 +162,8 @@ const registerCommunity = catchAsync(async (req, res) => {
 });
 
 const login = catchAsync(async (req, res) => {
-  const { identifier, password, communitySlug } = req.body;
+  const { identifier: rawIdentifier, email, password, communitySlug } = req.body;
+  const identifier = rawIdentifier || email;
   const looksLikeEmail = identifier.includes('@');
 
   let user;
@@ -201,6 +202,21 @@ const login = catchAsync(async (req, res) => {
       : null;
     if (!community || community.slug !== communitySlug) {
       throw new AppError('This account is not part of this community’s portal', 403);
+    }
+    if (community.status === 'SUSPENDED') {
+      throw new AppError('This community has been suspended. Please contact support.', 403);
+    }
+  } else if (user.communityId) {
+    // No slug to cross-check (e.g. a non-subdomain login path), but a
+    // suspended community must still block a fresh login — see
+    // Community.status (added in the platform-admin console's Phase 2).
+    // Note this only prevents a NEW login; a token issued before
+    // suspension remains valid until it naturally expires (see the
+    // schema comment on Community.status for why that's intentional for
+    // now).
+    const community = await prisma.community.findUnique({ where: { id: user.communityId } });
+    if (community?.status === 'SUSPENDED') {
+      throw new AppError('This community has been suspended. Please contact support.', 403);
     }
   }
 

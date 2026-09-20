@@ -8,7 +8,10 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 
 const errorHandler = require('./middleware/errorHandler');
+const requestId = require('./middleware/requestId');
+const metricsCollector = require('./middleware/metricsCollector');
 const AppError = require('./utils/AppError');
+const prisma = require('./config/prisma');
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -28,8 +31,22 @@ const pendingChangeRoutes = require('./routes/pendingChangeRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const committeeAutoApprovalRoutes = require('./routes/committeeAutoApprovalRoutes');
 const supportRoutes = require('./routes/supportRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
+const platformAdminRoutes = require('./routes/platformAdmin');
 
 const app = express();
+
+// Every request gets a traceable ID before anything else runs, so it's
+// available to morgan, the error handler, and (for platform-admin routes)
+// the platform audit log — see middleware/requestId.js.
+app.use(requestId);
+
+// Phase 5: attach metrics collector after requestId (so the ID is always
+// present when the response finishes) but before all route handlers so
+// every request — including /health — contributes to the metrics store.
+// Errors from the collector are swallowed internally and never break
+// unrelated requests (see metricsCollector.js).
+app.use(metricsCollector);
 
 // Render (and most PaaS hosts) put the app behind a reverse proxy, so every
 // request arrives with an X-Forwarded-For header. Without telling Express
@@ -81,17 +98,53 @@ if (CORS_ORIGINS.length === 0) {
 }
 
 console.log(`[cors] Allowing origin(s): ${CORS_ORIGINS.join(', ')}`);
-app.use(
-  cors({
-    origin(origin, callback) {
-      // Same-origin/non-browser requests (curl, health checks) send no
-      // Origin header at all — allow those through.
-      if (!origin || CORS_ORIGINS.includes(origin)) return callback(null, true);
-      callback(new Error(`Origin ${origin} not allowed by CORS_ORIGIN`));
-    },
-    credentials: true,
-  })
-);
+const communityCors = cors({
+  origin(origin, callback) {
+    // Same-origin/non-browser requests (curl, health checks) send no
+    // Origin header at all — allow those through.
+    if (!origin || CORS_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`Origin ${origin} not allowed by CORS_ORIGIN`));
+  },
+  credentials: true,
+});
+
+// Platform-admin console gets its OWN allowlist, entirely separate from
+// CORS_ORIGIN above (see PHASE 1's "Admin domain" requirement — the
+// console is meant to eventually live on its own subdomain, e.g.
+// admin.example.com). No wildcard, no fallback to the community origin
+// list: an origin allowed to call the community API must not thereby be
+// allowed to call platform-admin endpoints, and vice versa. If unset,
+// platform-admin routes simply refuse every cross-origin browser request
+// (same-origin/non-browser callers still work) rather than silently
+// reusing CORS_ORIGIN.
+const PLATFORM_ADMIN_CORS_ORIGINS = (process.env.PLATFORM_ADMIN_CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+if (PLATFORM_ADMIN_CORS_ORIGINS.length === 0 && process.env.NODE_ENV !== 'test') {
+  console.warn(
+    '[cors] PLATFORM_ADMIN_CORS_ORIGIN not set — the platform-admin console API will refuse ' +
+      'all cross-origin browser requests until this is configured (e.g. https://admin.example.com).'
+  );
+}
+
+const platformAdminCors = cors({
+  origin(origin, callback) {
+    if (!origin || PLATFORM_ADMIN_CORS_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`Origin ${origin} not allowed by PLATFORM_ADMIN_CORS_ORIGIN`));
+  },
+  credentials: true,
+});
+
+// Route each request to exactly one of the two CORS policies above based
+// on path — never both, and never a union of the two allowlists. This is
+// what keeps a community-origin browser page from ever being allowed to
+// make a credentialed request to /api/platform/*, and vice versa.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/platform')) return platformAdminCors(req, res, next);
+  return communityCors(req, res, next);
+});
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -118,9 +171,23 @@ app.use(
 // Uploaded receipt files served statically.
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+app.get('/health/live', (req, res) => res.json({ success: true, status: 'ok' }));
+
+app.get('/health/ready', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ success: true, status: 'ready' });
+  } catch (_err) {
+    res.status(503).json({ success: false, status: 'not_ready' });
+  }
+});
+
 app.get('/health', (req, res) => res.json({ success: true, status: 'ok', time: new Date() }));
 
 const API_PREFIX = '/api/v1';
+const maintenanceMode = require('./middleware/maintenanceMode');
+app.use(API_PREFIX, maintenanceMode);
+
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/users`, userRoutes);
 app.use(`${API_PREFIX}/communities`, communityRoutes);
@@ -139,6 +206,14 @@ app.use(`${API_PREFIX}/pending-changes`, pendingChangeRoutes);
 app.use(`${API_PREFIX}/audit-logs`, auditRoutes);
 app.use(`${API_PREFIX}/committee-auto-approvals`, committeeAutoApprovalRoutes);
 app.use(`${API_PREFIX}/support`, supportRoutes);
+app.use(`${API_PREFIX}/announcements`, announcementRoutes);
+
+// Platform Administration Console — a dedicated API namespace, versioned
+// independently of the community API above (both happen to be v1 today,
+// but that's incidental; they can diverge). Nothing under here is reachable
+// via a community User's JWT (see middleware/platformAdmin/authenticatePlatformAdmin.js),
+// and nothing under /api/v1 is reachable via a platform-admin token.
+app.use('/api/platform/v1', platformAdminRoutes);
 
 // Unmatched routes.
 app.use((req, res, next) => {

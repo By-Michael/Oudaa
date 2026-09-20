@@ -2,7 +2,7 @@ const prisma = require('../config/prisma');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
 const { getFaqsForRole } = require('../utils/supportFaqs');
-const { runSupportChat, isConfigured } = require('../utils/supportAiAssistant');
+const { runSupportChat, isConfigured, SUPPORT_MODEL } = require('../utils/supportAiAssistant');
 
 // Everyone (ADMIN or RESIDENT) gets the FAQ list relevant to their role.
 const listFaqs = catchAsync(async (req, res) => {
@@ -36,9 +36,12 @@ const chat = catchAsync(async (req, res) => {
   const ctx = { communityId: req.communityId, user: req.user };
 
   let reply;
+  const requestStartedAt = Date.now();
+  let requestError = null;
   try {
     reply = await runSupportChat(ctx, priorMessages, message);
   } catch (err) {
+    requestError = err;
     if (err.code === 'NOT_CONFIGURED') {
       throw new AppError('The AI assistant isn’t set up on this server yet — please use the FAQ above or contact your committee directly.', 503);
     }
@@ -49,6 +52,25 @@ const chat = catchAsync(async (req, res) => {
       throw new AppError(err.message, 502);
     }
     throw err;
+  } finally {
+    // Best-effort, non-blocking telemetry (Phase 4 — platform-level AI
+    // support visibility). A logging failure must never affect the
+    // support response itself, so this is fired-and-forgotten, not
+    // awaited inline with the response path. Only from this point forward
+    // does request-count/latency/failure history exist — see
+    // SupportAiRequestLog in prisma/schema.prisma.
+    prisma.supportAiRequestLog
+      .create({
+        data: {
+          model: SUPPORT_MODEL,
+          success: !requestError,
+          latencyMs: Date.now() - requestStartedAt,
+          errorMessage: requestError ? String(requestError.message).slice(0, 500) : null,
+          sessionId: session?.id || null,
+          userId: req.user.id,
+        },
+      })
+      .catch(() => {});
   }
 
   if (session) {

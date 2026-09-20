@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from 'react'
+import { useEffect, useState, Suspense, lazy } from 'react'
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import AppLayout from './layouts/AppLayout'
@@ -12,6 +12,36 @@ import Signup from './pages/Signup'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import { Toaster } from './components/ui'
+import { PlatformAuthProvider } from './platformAdmin/context/PlatformAuthContext'
+import PlatformProtectedRoute from './platformAdmin/PlatformProtectedRoute'
+
+const PLATFORM_ONLY_BUILD = import.meta.env.VITE_APP_MODE === 'platform-admin'
+
+const PlatformLogin = lazy(() => import('./platformAdmin/pages/PlatformLogin'))
+const PlatformAppLayout = lazy(() => import('./platformAdmin/layouts/PlatformAppLayout'))
+const PlatformDashboard = lazy(() => import('./platformAdmin/pages/PlatformDashboard'))
+const PlatformCommunities = lazy(() => import('./platformAdmin/pages/PlatformCommunities'))
+const PlatformCommunityDetail = lazy(() => import('./platformAdmin/pages/PlatformCommunityDetail'))
+const PlatformUsers = lazy(() => import('./platformAdmin/pages/PlatformUsers'))
+const PlatformUserDetail = lazy(() => import('./platformAdmin/pages/PlatformUserDetail'))
+const PlatformSupportInbox = lazy(() => import('./platformAdmin/pages/PlatformSupportInbox'))
+const PlatformTicketDetail = lazy(() => import('./platformAdmin/pages/PlatformTicketDetail'))
+const PlatformSecurityDashboard = lazy(() => import('./platformAdmin/pages/PlatformSecurityDashboard'))
+const PlatformSecurityEvents = lazy(() => import('./platformAdmin/pages/PlatformSecurityEvents'))
+const PlatformSecuritySessions = lazy(() => import('./platformAdmin/pages/PlatformSecuritySessions'))
+const PlatformSecuritySettings = lazy(() => import('./platformAdmin/pages/PlatformSecuritySettings'))
+const PlatformAdmins = lazy(() => import('./platformAdmin/pages/PlatformAdmins'))
+const PlatformAdminDetail = lazy(() => import('./platformAdmin/pages/PlatformAdminDetail'))
+const PlatformFeatureFlags = lazy(() => import('./platformAdmin/pages/PlatformFeatureFlags'))
+const PlatformMaintenance = lazy(() => import('./platformAdmin/pages/PlatformMaintenance'))
+const PlatformAnnouncements = lazy(() => import('./platformAdmin/pages/PlatformAnnouncements'))
+const PlatformNotifications = lazy(() => import('./platformAdmin/pages/PlatformNotifications'))
+const PlatformExports = lazy(() => import('./platformAdmin/pages/PlatformExports'))
+const PlatformSettings = lazy(() => import('./platformAdmin/pages/PlatformSettings'))
+const PlatformAudit = lazy(() => import('./platformAdmin/pages/PlatformAudit'))
+const PlatformIntegrations = lazy(() => import('./platformAdmin/pages/PlatformIntegrations'))
+const PlatformPerformance = lazy(() => import('./platformAdmin/pages/PlatformPerformance'))
+
 
 // Everything behind auth (admin/resident panels) is code-split so the
 // public landing/login pages don't have to download recharts, jspdf,
@@ -106,7 +136,29 @@ function LegacyPortalRedirect() {
   return <Navigate to={portalBase(user)} replace />
 }
 
-export default function App() {
+
+function MaintenanceOverlay() {
+  const [notice, setNotice] = useState(null)
+  useEffect(() => {
+    const handler = (event) => setNotice(event.detail || { message: 'The platform is temporarily under maintenance.' })
+    window.addEventListener('oudaa:maintenance', handler)
+    return () => window.removeEventListener('oudaa:maintenance', handler)
+  }, [])
+  if (!notice) return null
+  return (
+    <div className="fixed inset-0 z-[100] bg-ink-950/95 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="max-w-lg w-full rounded-2xl border border-ink-700 bg-ink-900 p-8 text-center shadow-card">
+        <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-300 text-xl">!</div>
+        <h2 className="mt-5 text-xl font-semibold text-white">Maintenance in progress</h2>
+        <p className="mt-2 text-sm leading-6 text-ink-300">{notice.message}</p>
+        {notice.expectedDurationMinutes && <p className="mt-2 text-xs text-ink-500">Expected duration: {notice.expectedDurationMinutes} minutes.</p>}
+        <p className="mt-5 text-xs text-ink-500">Health monitoring and the platform operations console remain available.</p>
+      </div>
+    </div>
+  )
+}
+
+function CommunityApp() {
   const { user, bootstrapped } = useAuth()
 
   if (!bootstrapped) {
@@ -120,6 +172,7 @@ export default function App() {
   return (
     <>
       <Toaster />
+      <MaintenanceOverlay />
       <ScrollToTop />
       <Routes>
       <Route path="/" element={user ? <Navigate to={portalBase(user)} replace /> : <Landing />} />
@@ -171,4 +224,66 @@ export default function App() {
       </Routes>
     </>
   )
+}
+
+
+function PlatformOnlyApp() {
+  return (
+    <PlatformAuthProvider>
+      <Routes>
+        <Route
+          path="/platform-admin/login"
+          element={<Suspense fallback={<RouteFallback />}><PlatformLogin /></Suspense>}
+        />
+        <Route
+          path="/platform-admin/*"
+          element={
+            <PlatformProtectedRoute>
+              <Suspense fallback={<RouteFallback />}>
+                <PlatformAppLayout />
+              </Suspense>
+            </PlatformProtectedRoute>
+          }
+        >
+          <Route path="dashboard" element={<Suspense fallback={<RouteFallback />}><PlatformDashboard /></Suspense>} />
+          <Route path="communities" element={<Suspense fallback={<RouteFallback />}><PlatformCommunities /></Suspense>} />
+          <Route path="communities/:id" element={<Suspense fallback={<RouteFallback />}><PlatformCommunityDetail /></Suspense>} />
+          <Route path="users" element={<Suspense fallback={<RouteFallback />}><PlatformUsers /></Suspense>} />
+          <Route path="users/:id" element={<Suspense fallback={<RouteFallback />}><PlatformUserDetail /></Suspense>} />
+          <Route path="support" element={<Suspense fallback={<RouteFallback />}><PlatformSupportInbox /></Suspense>} />
+          <Route path="support/:id" element={<Suspense fallback={<RouteFallback />}><PlatformTicketDetail /></Suspense>} />
+          <Route path="security" element={<Suspense fallback={<RouteFallback />}><PlatformSecurityDashboard /></Suspense>} />
+          <Route path="security/events" element={<Suspense fallback={<RouteFallback />}><PlatformSecurityEvents /></Suspense>} />
+          <Route path="security/sessions" element={<Suspense fallback={<RouteFallback />}><PlatformSecuritySessions /></Suspense>} />
+          <Route path="security/settings" element={<Suspense fallback={<RouteFallback />}><PlatformSecuritySettings /></Suspense>} />
+          <Route path="platform-admins" element={<Suspense fallback={<RouteFallback />}><PlatformAdmins /></Suspense>} />
+          <Route path="platform-admins/:id" element={<Suspense fallback={<RouteFallback />}><PlatformAdminDetail /></Suspense>} />
+          <Route path="feature-flags" element={<Suspense fallback={<RouteFallback />}><PlatformFeatureFlags /></Suspense>} />
+          <Route path="maintenance" element={<Suspense fallback={<RouteFallback />}><PlatformMaintenance /></Suspense>} />
+          <Route path="announcements" element={<Suspense fallback={<RouteFallback />}><PlatformAnnouncements /></Suspense>} />
+          <Route path="notifications" element={<Suspense fallback={<RouteFallback />}><PlatformNotifications /></Suspense>} />
+          <Route path="exports" element={<Suspense fallback={<RouteFallback />}><PlatformExports /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={<RouteFallback />}><PlatformSettings /></Suspense>} />
+          <Route path="audit" element={<Suspense fallback={<RouteFallback />}><PlatformAudit /></Suspense>} />
+          <Route path="integrations" element={<Suspense fallback={<RouteFallback />}><PlatformIntegrations /></Suspense>} />
+          <Route path="performance" element={<Suspense fallback={<RouteFallback />}><PlatformPerformance /></Suspense>} />
+          <Route index element={<Navigate to="dashboard" replace />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/platform-admin/login" replace />} />
+      </Routes>
+    </PlatformAuthProvider>
+  )
+}
+
+export default function App() {
+  if (PLATFORM_ONLY_BUILD) {
+    return (
+      <>
+        <Toaster />
+        <ScrollToTop />
+        <PlatformOnlyApp />
+      </>
+    )
+  }
+  return <CommunityApp />
 }

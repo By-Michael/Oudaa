@@ -1,0 +1,13 @@
+'use strict';
+const express = require('express');
+const c = require('../../controllers/platformAdmin/platformNotificationController');
+const auth = require('../../middleware/platformAdmin/authenticatePlatformAdmin');
+const mfa = require('../../middleware/platformAdmin/requireMfa');
+const pwd = require('../../middleware/platformAdmin/requireMustChangePassword');
+const perm = require('../../middleware/platformAdmin/requirePlatformPermission');
+const { PLATFORM_PERMISSIONS: P } = require('../../config/platformPermissions');
+const router = express.Router(); const chain = [auth, mfa, pwd];
+router.get('/', ...chain, perm(P.NOTIFICATIONS_VIEW), c.list);
+router.post('/read-all', ...chain, perm(P.NOTIFICATIONS_VIEW), c.markAllRead);
+router.post('/:id/read', ...chain, perm(P.NOTIFICATIONS_VIEW), c.markRead);
+module.exports = router;

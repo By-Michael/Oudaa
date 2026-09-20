@@ -105,7 +105,7 @@ function withSenderName(payment) {
 async function resolveResidentId(req) {
   if (req.user.role === 'RESIDENT') {
     const resident = await prisma.resident.findUnique({ where: { userId: req.user.id } });
-    if (!resident) throw new AppError('Resident profile not found', 404);
+    if (!resident) throw new AppError('Resident profile not found', 403);
     return resident.id;
   }
   // ADMIN recording on behalf of someone
@@ -141,12 +141,6 @@ const createPayment = catchAsync(async (req, res) => {
   const target = await resolveTarget(req);
   const isAdminRecording = req.user.role === 'ADMIN';
 
-  // A committee member recording a payment must supply the real transaction
-  // reference from the receipt — the reference is the verifiable proof of
-  // payment, so fabricating or omitting it defeats its purpose.
-  if (isAdminRecording && !req.body.transactionReference?.trim()) {
-    throw new AppError('Transaction reference is required when recording a payment manually.', 400);
-  }
 
   const payment = await prisma.payment.create({
     data: {
@@ -184,7 +178,7 @@ const listPayments = catchAsync(async (req, res) => {
 
   if (req.user.role === 'RESIDENT') {
     const resident = await prisma.resident.findUnique({ where: { userId: req.user.id } });
-    if (!resident) throw new AppError('Resident profile not found', 404);
+    if (!resident) throw new AppError('Resident profile not found', 403);
     where = { AND: [where, { residentId: resident.id }] };
   }
 
@@ -407,24 +401,6 @@ const DB_PROVIDER_TO_VERITAS = {
   TELEBIRR: 'telebirr',
 };
 
-// CBE's Veritas adapter can require `accountSuffix` (the last few digits
-// of whichever account — sender or receiver — appears on the receipt) to
-// disambiguate a reference that otherwise resolves to multiple candidate
-// transactions — CBE's suffix is the last 8 digits of the account.
-// Hivee doesn't collect the resident's own account number
-// anywhere (Resident has no bank-account field), so the resident side of
-// "works both ways" isn't available to us — but the community's own
-// receiving account number always is (CommunityPaymentMethod.accountNumber
-// / the legacy Community.paymentAccountNumber). Auto-derive the suffix
-// from that instead of leaving it blank, so CBE lookups stop silently
-// missing a field Veritas can actually use. A resident-supplied suffix
-// (e.g. one day extracted from the receipt via OCR) still wins if present.
-function deriveAccountSuffix(accountNumber) {
-  const digits = (accountNumber || '').replace(/\D/g, '');
-  if (digits.length < 8) return null;
-  return digits.slice(-8);
-}
-
 // Resolves which payment method the resident is paying through, and what
 // provider/expected-account that implies. Falls back to the community's
 // single legacy account (community.paymentAccountNumber, no provider
@@ -465,7 +441,7 @@ async function resolvePaymentMethod(req, community) {
 //     (POST /payments/self-verify/receipt first, or pastes a link) —
 //     `receiptUrl` is required instead. Without a bank-verifiable
 //     reference this always lands in PENDING_REVIEW today (see the CBE
-//     branch below) unless OCR/Groq extraction resolves a reference.
+//     branch below) until QR extraction is wired up.
 //   - TELEBIRR: txnId (the reference number) + phoneNumber (the sender's
 //     phone) — Telebirr has no account to cross-check against.
 //   - legacy single-account communities (no CommunityPaymentMethod rows
@@ -474,7 +450,8 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   // Route-level authorize() lets ADMIN through too — an admin who's also a
   // resident of their own community (User.resident, schema.prisma) can
   // self-verify a payment for their own unit. If they have no linked
-  // resident profile, the lookup a few lines down 404s cleanly instead.
+  // resident profile, the lookup below is rejected without revealing whether
+  // a resident record exists for another account.
   if (!['ADMIN', 'RESIDENT'].includes(req.user.role)) {
     throw new AppError('Only residents can submit self-verified payments', 403);
   }
@@ -488,7 +465,7 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
     where: { userId: req.user.id },
     include: { user: { select: { fullName: true } } },
   });
-  if (!resident) throw new AppError('Resident profile not found', 404);
+  if (!resident) throw new AppError('Resident profile not found', 403);
 
   const community = await prisma.community.findUnique({ where: { id: req.communityId } });
   const { method: paymentMethod, provider, expectedAccountNumber } = await resolvePaymentMethod(req, community);
@@ -539,8 +516,8 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   // resubmits are fine since they'll get a fresh ID, but the same real
   // transfer can't be used to "pay" twice). CBE has no txnId at this
   // point (receipt-only), so this check simply doesn't apply to it yet —
-  // once OCR/Groq extraction yields a real reference, the same dedup
-  // should run against that instead.
+  // once QR extraction is wired up and yields a real reference, the same
+  // dedup should run against that instead.
   if (!isCbe) {
     const alreadyUsed = await prisma.payment.findFirst({
       where: {
@@ -570,9 +547,9 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   const targetLabel = fee ? `fee "${fee.name}"` : `fund "${fund.name}"`;
 
   // ---- CBE branch ----
-  // The resident types (or has auto-filled via OCR + Groq extraction)
-  // their transaction ID in req.body.txnId. The verification engine
-  // (bankVerification.js) checks it against CBE's records on submit.
+  // The resident types (or has auto-filled from OCR) their transaction ID
+  // in req.body.txnId. The verification engine (bankVerification.js) checks
+  // it against CBE's records on submit — no QR decoding needed here.
   // receiptReference (set by the upload step's OCR extraction) is used as
   // a fallback if txnId was not provided, for backwards-compat with older
   // clients. If neither is present the payment queues for manual review.
@@ -647,20 +624,12 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
     }
   }
 
-  // CBE: use the resident-supplied suffix if we ever have one, otherwise
-  // fall back to one auto-derived from the community's receiving account
-  // (see deriveAccountSuffix) so the Veritas lookup isn't missing a field
-  // it needs just because the resident was never asked for it.
-  const effectiveSuffix = isCbe
-    ? (suffix || deriveAccountSuffix(expectedAccountNumber))
-    : suffix;
-
   const result = await verifyBankTransaction({
     txnId: effectiveTxnId,
     expectedAmount: amount,
     expectedAccountNumber,
     provider,
-    suffix: effectiveSuffix,
+    suffix,
     phoneNumber,
   });
 
@@ -676,11 +645,11 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   // safeguard flag below.
   //
   // CBE is the one exception to the hard-reject: if Veritas concretely
-  // says the extracted reference doesn't match anything, that's much
-  // more likely a mis-extraction (OCR/Groq misreading the receipt) than
-  // the resident having typed something wrong (they never typed
-  // anything) — so a CBE non-match still queues for manual review against
-  // the uploaded receipt instead of blocking the submission outright.
+  // says the QR-decoded reference doesn't match anything, that's much
+  // more likely a QR mis-decode than the resident having typed something
+  // wrong (they never typed anything) — so a CBE non-match still queues
+  // for manual review against the uploaded receipt instead of blocking
+  // the submission outright.
   if (!result.matched && !result.serviceUnavailable && !isCbe) {
     throw new AppError(result.reason || 'Could not verify this transaction. Double-check the ID and try again.', 422);
   }
@@ -781,7 +750,7 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
       // payments so the resident's own history can show "for" a month.
       paidForMonth: fee ? `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` : undefined,
       status,
-      receiptUrl: receiptUrl || undefined,
+      receiptUrl: isCbe ? receiptUrl : undefined,
       verificationRaw: result.raw ?? undefined,
       reviewFlags: flags.length > 0 ? flags.join(' ') : undefined,
     },
@@ -818,15 +787,12 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
 // Best-effort autofill: OCR the uploaded screenshot, then let an LLM
 // (Groq) turn that raw text into structured fields. Never trusted
 // directly — the resident still sees and can correct every field before
-// submitting, and nothing here is used for bank verification. Also saves
-// the uploaded file (same as uploadSelfPaymentReceipt does for CBE) so
-// the receipt is attached to the payment and can be viewed later.
+// submitting, and nothing here is used for bank verification.
 const parsePaymentScreenshot = catchAsync(async (req, res) => {
   if (!req.file) throw new AppError('Screenshot file is required', 422);
   const { txnId, name, amount, bankName, date, source, rawText } =
     await parseReceiptImage(req.file.buffer, req.file.mimetype, req.file.originalname);
-  const { fileUrl } = await saveReceiptFile(req.file);
-  res.json({ success: true, data: { txnId, name, amount, bankName, date, source, rawText, receiptUrl: fileUrl } });
+  res.json({ success: true, data: { txnId, name, amount, bankName, date, source, rawText } });
 });
 
 // RESIDENT retracts their own self-verified payment while it's still
@@ -844,7 +810,7 @@ const retractOwnPayment = catchAsync(async (req, res) => {
   }
 
   const resident = await prisma.resident.findUnique({ where: { userId: req.user.id } });
-  if (!resident) throw new AppError('Resident profile not found', 404);
+  if (!resident) throw new AppError('Resident profile not found', 403);
 
   const payment = await prisma.payment.findFirst({
     where: { id: req.params.id, ...communityPaymentFilter(req.communityId) },

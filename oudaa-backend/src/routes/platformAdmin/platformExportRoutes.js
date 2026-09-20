@@ -1,0 +1,14 @@
+'use strict';
+const express = require('express');
+const c = require('../../controllers/platformAdmin/platformExportController');
+const auth = require('../../middleware/platformAdmin/authenticatePlatformAdmin');
+const mfa = require('../../middleware/platformAdmin/requireMfa');
+const pwd = require('../../middleware/platformAdmin/requireMustChangePassword');
+const perm = require('../../middleware/platformAdmin/requirePlatformPermission');
+const reauth = require('../../middleware/platformAdmin/requireRecentReauthentication');
+const { PLATFORM_PERMISSIONS: P } = require('../../config/platformPermissions');
+const router = express.Router(); const chain = [auth, mfa, pwd];
+router.get('/', ...chain, perm(P.DATA_EXPORT_USE), c.list);
+router.post('/', ...chain, reauth(15), perm(P.DATA_EXPORT_USE), c.create);
+router.get('/:id/download', ...chain, perm(P.DATA_EXPORT_USE), c.download);
+module.exports = router;

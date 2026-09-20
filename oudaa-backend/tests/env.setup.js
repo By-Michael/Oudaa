@@ -28,3 +28,12 @@ process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'test-access-se
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret';
 process.env.JWT_ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '15m';
 process.env.JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+
+// Platform-admin secrets — deliberately different values from the
+// community ones above, same as they must be in real deployments.
+process.env.PLATFORM_JWT_ACCESS_SECRET = process.env.PLATFORM_JWT_ACCESS_SECRET || 'test-platform-access-secret';
+process.env.PLATFORM_JWT_REFRESH_SECRET = process.env.PLATFORM_JWT_REFRESH_SECRET || 'test-platform-refresh-secret';
+process.env.PLATFORM_JWT_ACCESS_EXPIRES_IN = process.env.PLATFORM_JWT_ACCESS_EXPIRES_IN || '10m';
+process.env.PLATFORM_JWT_REFRESH_EXPIRES_IN = process.env.PLATFORM_JWT_REFRESH_EXPIRES_IN || '8h';
+process.env.PLATFORM_MFA_ENCRYPTION_KEY = process.env.PLATFORM_MFA_ENCRYPTION_KEY || 'test-platform-mfa-key';
+process.env.PLATFORM_ADMIN_CORS_ORIGIN = process.env.PLATFORM_ADMIN_CORS_ORIGIN || 'http://localhost:5174';

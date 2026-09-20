@@ -23,7 +23,7 @@ describe('POST /payments (admin recording on behalf of a resident)', () => {
     const res = await request(app)
       .post(BASE)
       .set('Authorization', `Bearer ${token}`)
-      .send({ residentId: resident.id, feeId: fee.id, amount: 300, paymentMethod: 'CASH', transactionReference: 'RCPT-0001' });
+      .send({ residentId: resident.id, feeId: fee.id, amount: 300, paymentMethod: 'CASH' });
 
     expect(res.status).toBe(201);
     expect(res.body.data.status).toBe('VERIFIED');
@@ -113,7 +113,7 @@ describe('GET /payments', () => {
 });
 
 describe('POST /payments/self-verify', () => {
-  it('rejects an admin with no resident profile from self-verifying', async () => {
+  it('rejects a non-resident (admin) from self-verifying', async () => {
     const { community, admin } = await createCommunityWithAdmin();
     const fee = await createFee(community.id);
     const { token } = await loginAs(admin.email, admin.plainPassword);
@@ -123,10 +123,7 @@ describe('POST /payments/self-verify', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ feeId: fee.id, payerName: 'Someone', txnId: 'ABC123456', provider: 'telebirr', phoneNumber: '0911111111' });
 
-    // An admin may self-verify only if they also have a resident profile
-    // (see paymentRoutes.js). The test admin has none, so the controller's
-    // resident lookup answers 404 "Resident profile not found".
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 
   // No VERITAS_API_KEY is set in the test environment (see env.setup.js /

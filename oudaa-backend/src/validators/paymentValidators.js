@@ -97,12 +97,12 @@ const selfVerifyPaymentSchema = z.object({
     // the time they reach this endpoint, so one field covers either path.
     receiptUrl: z.string().trim().url().optional(),
     // CBE only: the CBE receipt reference the server already resolved —
-    // either the link the resident pasted, or the payload decoded off the
-    // QR code on their uploaded screenshot/PDF (see
-    // POST /payments/self-verify/receipt's `extractedReference` response
-    // and receiptQrExtraction.js). Optional: a resident who uploaded a
-    // receipt the QR decoder couldn't read still gets queued for manual
-    // review rather than blocked, same as before this existed.
+    // either the link the resident pasted, or the transaction ID extracted
+    // via OCR (OCR.space) + Groq off their uploaded screenshot/PDF (see
+    // POST /payments/self-verify/receipt's `extractedTxnId` response).
+    // Optional: a resident whose receipt couldn't be extracted still gets
+    // queued for manual review rather than blocked, same as before this
+    // existed.
     receiptReference: z.string().trim().optional(),
     // Best-effort amount OCR'd off the receipt screenshot the resident
     // uploaded (see parsePaymentScreenshot). Purely a client-side signal —

@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { useTheme } from '../context/ThemeContext'
+import { useCalendar } from '../context/CalendarContext'
 import api, { endpoints, fileUrl } from '../lib/api'
 import { currency, formatDate, Modal, PageSkeleton, notify } from '../components/ui'
 import { getNotificationPrefs, onNotificationPrefsChanged } from '../lib/notificationPrefs'
@@ -67,6 +68,7 @@ function describePendingChangeDiff(diff) {
 }
 
 export default function AppLayout({ role }) {
+  const { calendar } = useCalendar()
   const [open, setOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -89,11 +91,8 @@ export default function AppLayout({ role }) {
 
   const [platformAnnouncements, setPlatformAnnouncements] = useState([])
   useEffect(() => {
-    if (user?.id) {
-      api.get(endpoints.platformAnnouncements()).then(({ data }) => setPlatformAnnouncements(data.data || [])).catch(() => {})
-    } else {
-      setPlatformAnnouncements([])
-    }
+    if (!user?.id) { setPlatformAnnouncements([]); return }
+    api.get(endpoints.platformAnnouncements()).then(({ data: response }) => setPlatformAnnouncements(response.data || [])).catch(() => {})
   }, [user?.id])
 
   // ---- notification mute preferences (Settings > Notifications) ----
@@ -593,12 +592,12 @@ export default function AppLayout({ role }) {
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
         <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8 max-w-[1400px] w-full mx-auto">
-          {platformAnnouncements.length > 0 && <div className="mb-5 space-y-2">{platformAnnouncements.map((announcement) => <div key={announcement.id} className={`rounded-xl border px-4 py-3 ${announcement.type === 'SECURITY' ? 'border-red-500/30 bg-red-500/10' : announcement.type === 'WARNING' ? 'border-amber-500/30 bg-amber-500/10' : 'border-teal-500/20 bg-teal-500/5'}`}><div className="flex items-start gap-3"><Bell className="w-4 h-4 mt-0.5 shrink-0" /><div><div className="text-sm font-semibold text-ink-900">{announcement.title}</div><div className="text-xs text-ink-600 mt-1 whitespace-pre-wrap">{announcement.message}</div></div></div></div>)}</div>}
           {/* Show a skeleton only for the very first load after login —
               not for background/action-triggered refreshes — so the page
               never flashes empty tables/zeroed stats and then suddenly
               pops to real data (see DataContext.hasLoadedOnce). */}
-          {loading && !hasLoadedOnce ? <PageSkeleton /> : <Outlet />}
+          {platformAnnouncements.length > 0 && <div className="mb-5 space-y-2">{platformAnnouncements.map((announcement) => <div key={announcement.id} className={`rounded-xl border px-4 py-3 ${announcement.type === 'SECURITY' ? 'border-red-500/30 bg-red-500/10' : announcement.type === 'WARNING' ? 'border-amber-500/30 bg-amber-500/10' : 'border-teal-500/20 bg-teal-500/5'}`}><div className="flex items-start gap-3"><Bell className="w-4 h-4 mt-0.5 shrink-0" /><div><div className="text-sm font-semibold text-ink-900">{announcement.title}</div><div className="text-xs text-ink-600 mt-1 whitespace-pre-wrap">{announcement.message}</div></div></div></div>)}</div>}
+          {loading && !hasLoadedOnce ? <PageSkeleton /> : <Outlet key={calendar} />}
         </main>
       </div>
       </div>

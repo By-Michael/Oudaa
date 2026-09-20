@@ -43,8 +43,8 @@ export function PlatformAuthProvider({ children }) {
   useEffect(() => {
     loadMe()
     const onExpire = () => setAdmin(null)
-    window.addEventListener('hivee:platform-session-expired', onExpire)
-    return () => window.removeEventListener('hivee:platform-session-expired', onExpire)
+    window.addEventListener('oudaa:platform-session-expired', onExpire)
+    return () => window.removeEventListener('oudaa:platform-session-expired', onExpire)
   }, [loadMe])
 
   const login = useCallback(async ({ email, password, mfaCode, recoveryCode }) => {

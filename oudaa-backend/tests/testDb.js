@@ -44,6 +44,19 @@ const TABLES = [
   'platform_admin_sessions',
   'platform_audit_logs',
   'platform_security_settings',
+  'platform_support_views',
+  'platform_feature_flags',
+  'platform_feature_flag_targets',
+  'platform_maintenance',
+  'platform_announcements',
+  'platform_announcement_targets',
+  'platform_notifications',
+  'platform_notification_reads',
+  'platform_export_jobs',
+  'platform_config_settings',
+  'platform_integration_events',
+  'platform_error_logs',
+  'platform_metric_snapshots',
 ];
 
 /**

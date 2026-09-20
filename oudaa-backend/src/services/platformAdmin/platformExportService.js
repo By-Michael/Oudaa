@@ -6,6 +6,7 @@ const os = require('os');
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const prisma = require('../../config/prisma');
+const { isSupabaseConfigured, supabase, SUPABASE_EXPORTS_BUCKET } = require('../../config/storage');
 const notificationService = require('./platformNotificationService');
 
 const EXPORT_DIR = process.env.PLATFORM_EXPORT_DIR || path.join(os.tmpdir(), 'oudaa-platform-exports');
@@ -205,44 +206,77 @@ async function buildRows(type, filters = {}) {
   }
 }
 
+let exportBucketReady = false;
+
+async function ensureExportBucket() {
+  if (exportBucketReady) return;
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Supabase Storage is not configured for platform exports.');
+  }
+  const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+  if (listError) throw new Error(`Supabase export bucket check failed: ${listError.message}`);
+  const exists = (buckets || []).some((bucket) => bucket.name === SUPABASE_EXPORTS_BUCKET);
+  if (!exists) {
+    const { error: createError } = await supabase.storage.createBucket(SUPABASE_EXPORTS_BUCKET, { public: false });
+    if (createError && !/already exists/i.test(createError.message || '')) {
+      throw new Error(`Supabase export bucket creation failed: ${createError.message}`);
+    }
+  }
+  exportBucketReady = true;
+}
+
+async function uploadExportToSupabase(fileName, contentType, buffer) {
+  await ensureExportBucket();
+  const { error } = await supabase.storage
+    .from(SUPABASE_EXPORTS_BUCKET)
+    .upload(fileName, buffer, { contentType, upsert: false });
+  if (error) throw new Error(`Supabase export upload failed: ${error.message}`);
+  return { filePath: `supabase://${SUPABASE_EXPORTS_BUCKET}/${fileName}`, sizeBytes: buffer.length };
+}
+
 async function writeFile(type, format, rows) {
-  fs.mkdirSync(EXPORT_DIR, { recursive: true });
   const id = crypto.randomUUID();
   const basename = `platform-${type.toLowerCase()}-${id}`;
   let fileName;
   let contentType;
-  let filePath;
+  let buffer;
 
   if (format === 'JSON') {
     fileName = `${basename}.json`;
     contentType = 'application/json';
-    filePath = path.join(EXPORT_DIR, fileName);
-    fs.writeFileSync(filePath, JSON.stringify(safeJson(rows), null, 2), 'utf8');
+    buffer = Buffer.from(JSON.stringify(safeJson(rows), null, 2), 'utf8');
   } else if (format === 'CSV') {
     fileName = `${basename}.csv`;
     contentType = 'text/csv; charset=utf-8';
-    filePath = path.join(EXPORT_DIR, fileName);
     const headers = rows.length ? Object.keys(rows[0]) : [];
     const lines = [headers.map(escapeCsv).join(',')];
     for (const row of rows) lines.push(headers.map((key) => escapeCsv(row[key])).join(','));
-    fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+    buffer = Buffer.from(`${lines.join('\n')}\n`, 'utf8');
   } else if (format === 'XLSX') {
     fileName = `${basename}.xlsx`;
     contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    filePath = path.join(EXPORT_DIR, fileName);
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Export');
     const headers = rows.length ? Object.keys(rows[0]) : [];
     sheet.columns = headers.map((key) => ({ header: key, key }));
     for (const row of rows) sheet.addRow(safeJson(row));
     sheet.views = [{ state: 'frozen', ySplit: 1 }];
-    await workbook.xlsx.writeFile(filePath);
+    buffer = Buffer.from(await workbook.xlsx.writeBuffer());
   } else {
     throw Object.assign(new Error(`Unsupported export format: ${format}`), { statusCode: 400 });
   }
 
-  const stat = fs.statSync(filePath);
-  return { fileName, filePath, contentType, sizeBytes: stat.size };
+  // Render Free has no persistent disk. In production, use the same durable
+  // Supabase Storage backend already required for receipt uploads. Keep a
+  // local temp-file fallback for local development/tests without Supabase.
+  if (isSupabaseConfigured) {
+    return { fileName, contentType, ...(await uploadExportToSupabase(fileName, contentType, buffer)) };
+  }
+
+  fs.mkdirSync(EXPORT_DIR, { recursive: true });
+  const filePath = path.join(EXPORT_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return { fileName, filePath, contentType, sizeBytes: buffer.length };
 }
 
 async function createJob({ type, format, filters = {}, requestedById }) {
@@ -344,9 +378,18 @@ async function cleanupExpiredJobs() {
   });
   if (!jobs.length) return 0;
   for (const job of jobs) {
-    if (job.filePath) {
-      try { fs.unlinkSync(job.filePath); } catch (_err) { /* file may already be gone */ }
+    if (!job.filePath) continue;
+    if (job.filePath.startsWith('supabase://')) {
+      try {
+        const [, bucket, ...keyParts] = job.filePath.split('/');
+        const key = keyParts.join('/');
+        if (bucket && key && isSupabaseConfigured && supabase) {
+          await supabase.storage.from(bucket).remove([key]);
+        }
+      } catch (_err) { /* best effort; database expiry must still complete */ }
+      continue;
     }
+    try { fs.unlinkSync(job.filePath); } catch (_err) { /* file may already be gone */ }
   }
   await prisma.platformExportJob.updateMany({ where: { id: { in: jobs.map((job) => job.id) } }, data: { status: 'EXPIRED', filePath: null } });
   return jobs.length;
@@ -367,13 +410,25 @@ async function getJobForAdmin(id, adminId) {
 
 async function download(job, res) {
   if (job.status !== 'COMPLETED' || !job.filePath || !job.fileName) throw Object.assign(new Error('Export is not ready'), { statusCode: 409 });
+
+  res.setHeader('Content-Type', job.contentType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${job.fileName.replace(/["\\]/g, '')}"`);
+
+  if (job.filePath.startsWith('supabase://')) {
+    if (!isSupabaseConfigured || !supabase) throw Object.assign(new Error('Export storage is unavailable'), { statusCode: 503 });
+    const [, bucket, ...keyParts] = job.filePath.split('/');
+    const key = keyParts.join('/');
+    if (!bucket || !key) throw Object.assign(new Error('Invalid export storage path'), { statusCode: 500 });
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 60);
+    if (error || !data?.signedUrl) throw Object.assign(new Error('Export file has expired or is unavailable'), { statusCode: 410 });
+    return res.redirect(302, data.signedUrl);
+  }
+
   const exportRoot = path.resolve(EXPORT_DIR);
   const resolved = path.resolve(job.filePath);
   if (!resolved.startsWith(`${exportRoot}${path.sep}`)) throw Object.assign(new Error('Invalid export path'), { statusCode: 500 });
   if (!fs.existsSync(resolved)) throw Object.assign(new Error('Export file has expired or is unavailable'), { statusCode: 410 });
-  res.setHeader('Content-Type', job.contentType || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename="${job.fileName.replace(/["\\]/g, '')}"`);
-  res.sendFile(resolved);
+  return res.sendFile(resolved);
 }
 
 module.exports = { createJob, processQueuedJobs, startWorker, cleanupExpiredJobs, listJobs, getJobForAdmin, download, safeJson, buildRows };

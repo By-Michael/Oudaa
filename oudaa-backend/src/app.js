@@ -213,7 +213,12 @@ app.use(`${API_PREFIX}/announcements`, announcementRoutes);
 // but that's incidental; they can diverge). Nothing under here is reachable
 // via a community User's JWT (see middleware/platformAdmin/authenticatePlatformAdmin.js),
 // and nothing under /api/v1 is reachable via a platform-admin token.
-app.use('/api/platform/v1', platformAdminRoutes);
+app.use('/api/platform/v1', (req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && String(process.env.PLATFORM_ADMIN_ENABLED || '').toLowerCase() !== 'true') {
+    return res.status(503).json({ success: false, message: 'Platform administration is not enabled on this deployment.' });
+  }
+  return platformAdminRoutes(req, res, next);
+});
 
 // Unmatched routes.
 app.use((req, res, next) => {

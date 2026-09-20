@@ -69,7 +69,7 @@ function doRefresh() {
 function clearPlatformSession() {
   setStoredPlatformToken(null)
   setStoredPlatformAdmin(null)
-  window.dispatchEvent(new Event('hivee:platform-session-expired'))
+  window.dispatchEvent(new Event('oudaa:platform-session-expired'))
 }
 
 platformApi.interceptors.response.use(
@@ -97,7 +97,7 @@ platformApi.interceptors.response.use(
     const errorDetails = getPlatformErrorDetails(err)
     err.requestId = errorDetails.requestId
     err.friendlyMessage = errorDetails.message
-    window.dispatchEvent(new CustomEvent('hivee:platform-api-error', { detail: errorDetails }))
+    window.dispatchEvent(new CustomEvent('oudaa:platform-api-error', { detail: errorDetails }))
     return Promise.reject(err)
   }
 )

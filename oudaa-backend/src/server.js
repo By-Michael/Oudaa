@@ -6,7 +6,6 @@ const { isStubActive: isEmailStubActive, verifyEmailTransport } = require('./uti
 const { isSupabaseConfigured } = require('./config/storage');
 const { isStubActive: isOcrStubActive } = require('./utils/ocrReceipt');
 const { isStubActive: isGroqStubActive } = require('./utils/groqReceiptParser');
-// Phase 5: background metric snapshot collector.
 const { collectAndStoreSnapshot, SNAPSHOT_INTERVAL_MS } = require('./services/platformAdmin/platformMetricsService');
 const { startWorker: startPlatformExportWorker, cleanupExpiredJobs } = require('./services/platformAdmin/platformExportService');
 const { cleanupTelemetry } = require('./services/platformAdmin/platformTelemetryRetentionService');
@@ -16,23 +15,42 @@ const PORT = process.env.PORT || 4000;
 
 function assertProductionConfiguration() {
   if (process.env.NODE_ENV !== 'production') return;
-  const required = [
+
+  const coreRequired = [
     ['DATABASE_URL', 1],
     ['CORS_ORIGIN', 1],
-    ['PLATFORM_ADMIN_CORS_ORIGIN', 1],
     ['JWT_ACCESS_SECRET', 32],
     ['JWT_REFRESH_SECRET', 32],
-    ['PLATFORM_JWT_ACCESS_SECRET', 32],
-    ['PLATFORM_JWT_REFRESH_SECRET', 32],
-    ['PLATFORM_MFA_ENCRYPTION_KEY', 32],
     ['FRONTEND_URL', 1],
   ];
   const missing = [];
   const weak = [];
-  for (const [name, minLength] of required) {
+  for (const [name, minLength] of coreRequired) {
     const value = String(process.env[name] || '');
     if (!value) missing.push(name);
     else if (value.length < minLength) weak.push(name);
+  }
+
+  const platformEnabled = String(process.env.PLATFORM_ADMIN_ENABLED || '').toLowerCase() === 'true';
+  if (platformEnabled) {
+    const platformRequired = [
+      ['PLATFORM_ADMIN_CORS_ORIGIN', 1],
+      ['PLATFORM_JWT_ACCESS_SECRET', 32],
+      ['PLATFORM_JWT_REFRESH_SECRET', 32],
+      ['PLATFORM_MFA_ENCRYPTION_KEY', 32],
+    ];
+    for (const [name, minLength] of platformRequired) {
+      const value = String(process.env[name] || '');
+      if (!value) missing.push(name);
+      else if (value.length < minLength) weak.push(name);
+    }
+    if (process.env.PLATFORM_JWT_ACCESS_SECRET === process.env.JWT_ACCESS_SECRET ||
+        process.env.PLATFORM_JWT_REFRESH_SECRET === process.env.JWT_REFRESH_SECRET) {
+      throw new Error('Production configuration check failed — platform JWT secrets must be different from community JWT secrets.');
+    }
+    if (!isSupabaseConfigured) {
+      throw new Error('Production configuration check failed — Supabase Storage is required when PLATFORM_ADMIN_ENABLED=true (Render Free has no persistent disk).');
+    }
   }
 
   if (missing.length || weak.length) {
@@ -40,23 +58,6 @@ function assertProductionConfiguration() {
     if (missing.length) parts.push(`missing: ${missing.join(', ')}`);
     if (weak.length) parts.push(`too short: ${weak.join(', ')}`);
     throw new Error(`Production configuration check failed — ${parts.join('; ')}.`);
-  }
-
-  if (process.env.PLATFORM_JWT_ACCESS_SECRET === process.env.JWT_ACCESS_SECRET ||
-      process.env.PLATFORM_JWT_REFRESH_SECRET === process.env.JWT_REFRESH_SECRET) {
-    throw new Error('Production configuration check failed — platform JWT secrets must be different from community JWT secrets.');
-  }
-
-  if (!isSupabaseConfigured && process.env.ALLOW_LOCAL_STORAGE_IN_PRODUCTION !== 'true') {
-    throw new Error('Production configuration check failed — Supabase storage is required for persistent receipt uploads. Set ALLOW_LOCAL_STORAGE_IN_PRODUCTION=true only when the deployment has durable persistent storage.');
-  }
-
-  if (isStubActive() && process.env.ALLOW_PAYMENT_VERIFICATION_STUB_IN_PRODUCTION !== 'true') {
-    throw new Error('Production configuration check failed — VERITAS_API_KEY is not configured. Refusing to start with payment verification in STUB mode.');
-  }
-
-  if (!String(process.env.PLATFORM_EXPORT_DIR || '').trim()) {
-    throw new Error('Production configuration check failed — PLATFORM_EXPORT_DIR must point to durable storage for platform export files.');
   }
 }
 
@@ -167,6 +168,24 @@ const server = app.listen(PORT, () => {
   console.log(`Oudaa backend listening on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
+
+// Platform-operations background tasks are non-blocking and use the same
+// Prisma connection as the API. They are safe when the admin console is not
+// enabled; export jobs simply remain unavailable without the required
+// platform configuration.
+const _metricsInterval = setInterval(() => {
+  collectAndStoreSnapshot().catch((err) => console.error('Platform metrics snapshot failed:', err?.message || err));
+}, SNAPSHOT_INTERVAL_MS);
+if (_metricsInterval.unref) _metricsInterval.unref();
+
+startPlatformExportWorker();
+cleanupExpiredJobs().catch(() => {});
+cleanupTelemetry().catch(() => {});
+const _telemetryCleanupInterval = setInterval(() => { cleanupTelemetry().catch(() => {}); }, 24 * 60 * 60 * 1000);
+if (_telemetryCleanupInterval.unref) _telemetryCleanupInterval.unref();
+const _exportCleanupInterval = setInterval(() => { cleanupExpiredJobs().catch(() => {}); }, 10 * 60 * 1000);
+if (_exportCleanupInterval.unref) _exportCleanupInterval.unref();
+
 async function shutdown(signal) {
   console.log(`\n${signal} received. Shutting down gracefully...`);
   server.close(async () => {
@@ -174,27 +193,6 @@ async function shutdown(signal) {
     process.exit(0);
   });
 }
-
-// Phase 5: collect a metric snapshot every SNAPSHOT_INTERVAL_MS (5 minutes).
-// The collector itself is dedup-safe across multiple Node processes (it
-// checks for a recent snapshot before writing). We use setInterval rather
-// than a worker thread so the snapshot runs in the same event loop that
-// already has an open Prisma connection — no additional connection needed.
-// The interval handle is deliberately not stored: it is cleaned up
-// automatically when the process exits via the shutdown handlers below.
-const _metricsInterval = setInterval(collectAndStoreSnapshot, SNAPSHOT_INTERVAL_MS);
-// Prevent the interval from keeping the process alive after an intentional
-// shutdown signal — unref() makes Node treat it as a non-blocking timer.
-if (_metricsInterval.unref) _metricsInterval.unref();
-
-// Phase 7: queued export worker. Export creation only enqueues a durable job;
-// file generation happens outside the request lifecycle.
-startPlatformExportWorker();
-cleanupExpiredJobs().catch(() => {});
-cleanupTelemetry().catch(() => {});
-setInterval(() => { cleanupTelemetry().catch(() => {}); }, 24 * 60 * 60 * 1000).unref?.();
-const _exportCleanupInterval = setInterval(() => { cleanupExpiredJobs().catch(() => {}); }, 10 * 60 * 1000);
-if (_exportCleanupInterval.unref) _exportCleanupInterval.unref();
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));

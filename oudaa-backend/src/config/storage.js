@@ -29,6 +29,7 @@ const SUPABASE_RECEIPTS_BUCKET = process.env.SUPABASE_RECEIPTS_BUCKET || 'receip
 // the app on a different device). Storing them here instead makes the
 // avatar part of the user's actual account data.
 const SUPABASE_AVATARS_BUCKET = process.env.SUPABASE_AVATARS_BUCKET || 'avatars';
+const SUPABASE_EXPORTS_BUCKET = process.env.SUPABASE_EXPORTS_BUCKET || 'platform-exports';
 
 const isSupabaseConfigured = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
@@ -129,6 +130,8 @@ module.exports = {
   saveAvatarFile,
   deleteAvatarFile,
   isSupabaseConfigured,
+  supabase,
+  SUPABASE_EXPORTS_BUCKET,
   LOCAL_UPLOAD_DIR,
   LOCAL_AVATAR_DIR,
 };

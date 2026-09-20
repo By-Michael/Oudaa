@@ -3,7 +3,7 @@ import { Plus, Trash2, FileText, Paperclip, Eye, Download, Upload, CheckCircle2,
 import { useData } from '../../context/DataContext'
 import {
   PageHeader, Modal, EmptyState, currency, formatDate, ConfirmDialog, notify, usePagedList, Pager,
-  FilterPopover, FilterGrid, FilterField, FilterTextInput, FilterSelectInput, FilterDateInput,
+  FilterPopover, FilterGrid, FilterField, FilterTextInput, FilterSelectInput, FilterDateInput, CalendarDateInput,
 } from '../../components/ui'
 import { fileUrl, downloadFile } from '../../lib/api'
 
@@ -295,7 +295,7 @@ export default function Expenses() {
             </div>
             <div>
               <label className="label">Date</label>
-              <input required type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+              <CalendarDateInput value={form.date} onChange={(value) => setForm({ ...form, date: value })} className="input" />
             </div>
           </div>
           <div>

@@ -109,7 +109,7 @@ function Navbar() {
   const activeLabel = navLinks.find((l) => l.href === activeHref)?.label ?? 'Home'
 
   return (
-    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#d7dde9] bg-[#eef1f9]/80 backdrop-blur-md dark:border-[#01df9e]/30 dark:bg-[#0b1120]/80">
+    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#d7dde9] bg-[#eef1f9]/95 backdrop-blur-none dark:border-[#01df9e]/30 dark:bg-[#0b1120]/95 md:bg-[#eef1f9]/80 md:backdrop-blur-md dark:md:bg-[#0b1120]/80">
       <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-16">
         <div className="flex h-20 items-center justify-between">
           <a href="#top" className="flex items-center gap-2">
@@ -652,7 +652,7 @@ function Footer() {
 
         <div className="flex flex-col items-center justify-between gap-8 border-t border-slate-700/50 pt-8 md:flex-row">
           <a href="#top" className="flex items-center gap-2">
-            <img src="/oudaa-logo-full.png" alt="Oudaa logo" className="h-7 w-auto object-contain" />
+            <img src="/oudaa-logo-full.png" alt="Oudaa logo" loading="lazy" className="h-7 w-auto object-contain" />
           </a>
           <p className="text-sm text-slate-500">&copy; {new Date().getFullYear()} Oudaa. All rights reserved.</p>
         </div>

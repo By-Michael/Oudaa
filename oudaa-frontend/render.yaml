@@ -16,7 +16,7 @@ services:
   - type: web
     name: oudaa-frontend
     runtime: static
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     routes:
       - type: rewrite

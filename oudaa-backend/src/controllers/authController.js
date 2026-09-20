@@ -162,7 +162,8 @@ const registerCommunity = catchAsync(async (req, res) => {
 });
 
 const login = catchAsync(async (req, res) => {
-  const { identifier, password, communitySlug } = req.body;
+  const { identifier: rawIdentifier, email, password, communitySlug } = req.body;
+  const identifier = rawIdentifier || email;
   const looksLikeEmail = identifier.includes('@');
 
   let user;

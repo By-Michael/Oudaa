@@ -81,6 +81,7 @@ async function searchSupport(q) {
 }
 
 async function searchPlatformAdmins(q) {
+  if (typeof prisma.platformAdmin?.findMany !== 'function') return [];
   const rows = await prisma.platformAdmin.findMany({
     where: {
       OR: [
@@ -162,7 +163,7 @@ async function searchProjects(q) {
   const rows = await prisma.project.findMany({
     where: { name: { contains: q, mode: 'insensitive' } },
     take: PER_CATEGORY_LIMIT,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { startDate: 'desc' },
     select: { id: true, name: true, status: true, communityId: true },
   });
   return (rows || []).map((p) => ({
@@ -180,6 +181,7 @@ const CATEGORY_MAP = [
   [PLATFORM_PERMISSIONS.USERS_VIEW, 'users', searchUsers],
   [PLATFORM_PERMISSIONS.ADMINS_VIEW, 'admins', searchPlatformAdmins],
   [PLATFORM_PERMISSIONS.USERS_VIEW, 'residents', searchResidents],
+  [PLATFORM_PERMISSIONS.SUPPORT_VIEW, 'support', searchSupport],
   [PLATFORM_PERMISSIONS.SUPPORT_VIEW, 'support_tickets', searchSupportTickets, 'supportTicket'],
   [PLATFORM_PERMISSIONS.AUDIT_VIEW, 'audit', searchAudit],
   [PLATFORM_PERMISSIONS.COMMUNITIES_VIEW, 'payments', searchPayments],

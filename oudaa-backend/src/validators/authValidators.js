@@ -38,8 +38,11 @@ const registerResidentSchema = z.object({
 
 const loginSchema = z.object({
   body: z.object({
-    // Accepts either an email address or a phone number in the same field.
-    identifier: z.string().min(3),
+    // New clients use `identifier` for either an email address or phone.
+    identifier: z.string().min(3).optional(),
+    // Keep accepting the historical `email` field so older clients and
+    // integrations continue to authenticate while migrating to `identifier`.
+    email: z.string().email().optional(),
     password: z.string().min(1),
     // Set by the frontend when the login page was loaded from a
     // community's subdomain (acme.oudaa.app). When present, the
@@ -47,6 +50,9 @@ const loginSchema = z.object({
     // authController.login — so someone can't accidentally (or
     // deliberately) sign in to the wrong tenant's portal.
     communitySlug: z.string().optional(),
+  }).refine((body) => Boolean(body.identifier || body.email), {
+    message: 'identifier or email is required',
+    path: ['identifier'],
   }),
 });
 

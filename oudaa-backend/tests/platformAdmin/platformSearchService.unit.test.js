@@ -7,9 +7,11 @@ jest.mock('../../src/config/prisma', () => ({
   user: { findMany: jest.fn().mockResolvedValue([]) },
   resident: { findMany: jest.fn().mockResolvedValue([]) },
   supportChatSession: { findMany: jest.fn().mockResolvedValue([]) },
+  supportTicket: { findMany: jest.fn().mockResolvedValue([]) },
   platformAuditLog: { findMany: jest.fn().mockResolvedValue([]) },
   payment: { findMany: jest.fn().mockResolvedValue([]) },
   project: { findMany: jest.fn().mockResolvedValue([]) },
+  platformAdmin: { findMany: jest.fn().mockResolvedValue([]) },
 }));
 
 const prisma = require('../../src/config/prisma');
@@ -33,7 +35,8 @@ describe('platformSearchService.globalSearch — permission filtering', () => {
     expect(prisma.supportChatSession.findMany).toHaveBeenCalled();
     expect(prisma.platformAuditLog.findMany).toHaveBeenCalled();
     expect(prisma.payment.findMany).toHaveBeenCalled();
-    expect(prisma.project.findMany).not.toHaveBeenCalled();
+    expect(prisma.project.findMany).toHaveBeenCalled();
+    expect(prisma.platformAdmin.findMany).toHaveBeenCalled();
   });
 
   it('FINANCE_OPERATOR (no community/support/audit/users view) never queries those search categories', async () => {
@@ -50,6 +53,7 @@ describe('platformSearchService.globalSearch — permission filtering', () => {
   it('SUPPORT_AGENT queries support, users, residents, communities but never audit', async () => {
     await globalSearch('SUPPORT_AGENT', 'jane');
     expect(prisma.supportChatSession.findMany).toHaveBeenCalled();
+    expect(prisma.supportTicket.findMany).toHaveBeenCalled();
     expect(prisma.user.findMany).toHaveBeenCalled();
     expect(prisma.resident.findMany).toHaveBeenCalled();
     expect(prisma.community.findMany).toHaveBeenCalled();

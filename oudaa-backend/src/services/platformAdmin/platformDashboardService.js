@@ -99,11 +99,11 @@ async function getFinancialAggregates() {
       verified: byStatus.VERIFIED,
       pending: byStatus.PENDING + byStatus.PENDING_REVIEW,
       rejected: byStatus.REJECTED,
-      totalAmount: totalPaymentAmount._sum.amount || 0,
+      totalAmount: totalPaymentAmount._sum.amount == null ? 0 : Number(totalPaymentAmount._sum.amount),
     },
     funds: { tracked: fundCount },
     projects: { active: activeProjects },
-    expenses: { recorded: expenseAgg._count._all, totalAmount: expenseAgg._sum.amount || 0 },
+    expenses: { recorded: expenseAgg._count._all, totalAmount: expenseAgg._sum.amount == null ? 0 : Number(expenseAgg._sum.amount) },
     scope: 'platform-wide', // explicitly not a single-community view — see Phase 2 spec
   };
 }

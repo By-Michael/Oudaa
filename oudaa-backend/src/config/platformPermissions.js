@@ -6,7 +6,7 @@
 // if this map ever drifts out of sync, the worst case is a nav item that
 // shows but 403s, or one that's hidden but the API would have allowed —
 // never unauthorized data exposure.
-export const PLATFORM_PERMISSIONS = {
+const PLATFORM_PERMISSIONS = {
   DASHBOARD_VIEW: 'platform.dashboard.view',
   COMMUNITIES_VIEW: 'platform.communities.view',
   COMMUNITIES_MANAGE: 'platform.communities.manage',
@@ -93,6 +93,40 @@ const ROLE_PERMISSIONS = {
   ],
 }
 
-export function roleHasPermission(role, permission) {
+function roleHasPermission(role, permission) {
   return (ROLE_PERMISSIONS[role] || []).includes(permission)
+}
+
+// Roles that must have MFA enabled — a code constant, not a runtime
+// setting (see requireMfa.js middleware, which also honors a separate
+// mfaRequiredForAllAdmins org-wide setting on top of this).
+const MFA_MANDATORY_ROLES = ['SUPER_ADMIN', 'SECURITY_AUDITOR']
+
+function isMfaMandatoryForRole(role) {
+  return MFA_MANDATORY_ROLES.includes(role)
+}
+
+const ASSIGNABLE_ROLES = Object.keys(ROLE_PERMISSIONS)
+
+function getPermissionsForRole(role) {
+  return ROLE_PERMISSIONS[role] || []
+}
+
+// A role can grant another role only if the target role's permissions
+// are entirely covered by the granter's own permissions — this blocks
+// self-escalation (e.g. a PLATFORM_ADMIN could never grant SUPER_ADMIN,
+// since SUPER_ADMIN has permissions PLATFORM_ADMIN lacks).
+function canRoleGrantRole(granterRole, targetRole) {
+  const granterPermissions = new Set(getPermissionsForRole(granterRole))
+  const targetPermissions = getPermissionsForRole(targetRole)
+  return targetPermissions.every((permission) => granterPermissions.has(permission))
+}
+
+module.exports = {
+  PLATFORM_PERMISSIONS,
+  roleHasPermission,
+  isMfaMandatoryForRole,
+  ASSIGNABLE_ROLES,
+  getPermissionsForRole,
+  canRoleGrantRole,
 }

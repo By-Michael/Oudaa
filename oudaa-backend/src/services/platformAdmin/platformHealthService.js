@@ -56,10 +56,13 @@ function checkAiSupport() {
   try {
     // eslint-disable-next-line global-require
     const { isStubActive } = require('../../utils/ocrReceipt');
-    // ocrReceipt.isStubActive() reflects both GROQ_API_KEY and
-    // OCRSPACE_API_KEY being unset — the same signal the AI support
-    // assistant (supportAiAssistant.js) and receipt parsing both depend
-    // on, since they share the same Groq credential.
+    // This check is scoped to the AI *support chat* assistant specifically
+    // (supportAiAssistant.js), which only needs GROQ_API_KEY — see its own
+    // isConfigured(). It's deliberately narrower than the Integrations
+    // Center's combined "AI / OCR" card (platformPerformanceService's
+    // _checkAiSync), which also requires OCRSPACE_API_KEY because receipt
+    // screenshot autofill has a different, stricter runtime dependency.
+    // Do not conflate the two here — ocrAlsoConfigured below is informational only.
     const groqConfigured = !!process.env.GROQ_API_KEY;
     return { status: groqConfigured ? 'HEALTHY' : 'NOT_CONFIGURED', ocrAlsoConfigured: !isStubActive() };
   } catch (err) {

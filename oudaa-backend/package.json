@@ -12,6 +12,7 @@
     "prisma:studio": "prisma studio",
     "seed": "node prisma/seed.js",
     "seed:large": "node prisma/seed-large.js",
+    "seed:platform": "node prisma/seedPlatformAdmin.js",
     "check-env": "node scripts/check-env.js",
     "test": "jest --runInBand",
     "lint": "eslint ."

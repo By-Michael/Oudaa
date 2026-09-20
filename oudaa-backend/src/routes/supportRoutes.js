@@ -4,18 +4,21 @@ const ctrl = require('../controllers/supportController');
 const authenticate = require('../middleware/authenticate');
 const tenantScope = require('../middleware/tenantScope');
 const validate = require('../middleware/validate');
-const { chatMessageSchema, saveSessionSchema } = require('../validators/supportValidators');
+const { chatMessageSchema, saveSessionSchema, createTicketSchema, ticketReplySchema } = require('../validators/supportValidators');
 
 const router = express.Router();
 
-// Support tickets are platform-admin only. Return a structural 404 from the
-// community API surface instead of leaking an authentication challenge for a
-// route that does not exist here.
-router.use('/tickets', (_req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
-});
-
 router.use(authenticate, tenantScope);
+
+// Human escalation: a resident can open a real ticket (optionally attaching
+// a prior AI chat session for context), see their own tickets, and reply.
+// Ticket *management* (assignment, internal notes, status changes) remains
+// platform-admin only — this surface only ever touches the caller's own
+// tickets, enforced in supportTicketService via `userId: req.user.id`.
+router.post('/tickets', validate(createTicketSchema), ctrl.createTicket);
+router.get('/tickets', ctrl.listMyTickets);
+router.get('/tickets/:id', ctrl.getMyTicket);
+router.post('/tickets/:id/messages', validate(ticketReplySchema), ctrl.replyToTicket);
 
 router.get('/faqs', ctrl.listFaqs);
 router.get('/ai-status', ctrl.aiStatus);

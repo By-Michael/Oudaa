@@ -36,4 +36,25 @@ const saveSessionSchema = z.object({
   }),
 });
 
-module.exports = { chatMessageSchema, saveSessionSchema };
+const createTicketSchema = z.object({
+  body: z.object({
+    subject: z.string().min(3).max(150),
+    description: z.string().min(1).max(4000).optional(),
+    category: z.enum(['ACCOUNT', 'PAYMENT', 'COMMUNITY', 'TECHNICAL', 'SECURITY', 'FINANCIAL', 'BUG', 'FEATURE_REQUEST', 'OTHER']).optional(),
+    priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
+    // A resident can escalate a chat they were already having straight into
+    // a ticket — this is the saved SupportChatSession id, not arbitrary text.
+    originConversationId: z.string().min(1).optional(),
+  }).refine((data) => data.description || data.originConversationId, {
+    message: 'Please describe your issue, or attach it to a prior conversation.',
+    path: ['description'],
+  }),
+});
+
+const ticketReplySchema = z.object({
+  body: z.object({
+    body: z.string().min(1).max(4000),
+  }),
+});
+
+module.exports = { chatMessageSchema, saveSessionSchema, createTicketSchema, ticketReplySchema };

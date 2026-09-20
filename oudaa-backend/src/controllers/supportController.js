@@ -3,6 +3,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
 const { getFaqsForRole } = require('../utils/supportFaqs');
 const { runSupportChat, isConfigured } = require('../utils/supportAiAssistant');
+const ticketService = require('../services/supportTicketService');
 
 // Everyone (ADMIN or RESIDENT) gets the FAQ list relevant to their role.
 const listFaqs = catchAsync(async (req, res) => {
@@ -112,4 +113,41 @@ const deleteSession = catchAsync(async (req, res) => {
   res.json({ success: true, data: null });
 });
 
-module.exports = { listFaqs, aiStatus, chat, listSessions, getSession, saveSession, deleteSession };
+// ── Human escalation: real support tickets, raised by the resident ────────
+// This is the piece that was previously missing entirely on the community
+// side: the AI chat/FAQ had no path into a ticket an admin would ever see.
+
+const createTicket = catchAsync(async (req, res) => {
+  const { subject, description, category, priority, originConversationId } = req.body;
+  const ticket = await ticketService.createTicket(req, { subject, description, category, priority, originConversationId });
+  res.status(201).json({ success: true, data: ticket });
+});
+
+const listMyTickets = catchAsync(async (req, res) => {
+  const tickets = await ticketService.listMyTickets(req);
+  res.json({ success: true, data: tickets });
+});
+
+const getMyTicket = catchAsync(async (req, res) => {
+  const ticket = await ticketService.getMyTicket(req, req.params.id);
+  res.json({ success: true, data: ticket });
+});
+
+const replyToTicket = catchAsync(async (req, res) => {
+  const message = await ticketService.replyToTicket(req, req.params.id, { body: req.body.body });
+  res.status(201).json({ success: true, data: message });
+});
+
+module.exports = {
+  listFaqs,
+  aiStatus,
+  chat,
+  listSessions,
+  getSession,
+  saveSession,
+  deleteSession,
+  createTicket,
+  listMyTickets,
+  getMyTicket,
+  replyToTicket,
+};

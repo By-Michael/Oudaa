@@ -234,13 +234,40 @@ function _checkAiSync() {
     const groqConfigured = !!process.env.GROQ_API_KEY;
     // eslint-disable-next-line global-require
     const { isStubActive } = require('../../utils/ocrReceipt');
-    const ocrConfigured = !isStubActive();
+    const ocrConfigured = !!process.env.OCRSPACE_API_KEY;
+    const visionEnabled = !!process.env.GROQ_VISION_ENABLED;
+
+    // OCR.space IS required in practice: parseReceiptImage() always falls
+    // through to ocrSpaceParse() (which throws without OCRSPACE_API_KEY)
+    // unless the Groq-vision path is both enabled and succeeds. Vision is
+    // off by default and, even when on, silently falls back to OCR.space
+    // on any failure — so without an OCR.space key, a vision hiccup takes
+    // the whole feature down. Reflect that honestly instead of treating
+    // GROQ_API_KEY alone as sufficient.
+    let status;
+    if (!groqConfigured) {
+      status = 'NOT_CONFIGURED';
+    } else if (ocrConfigured) {
+      status = 'CONFIGURED';
+    } else if (visionEnabled) {
+      status = 'DEGRADED'; // vision-only, no fallback if it fails
+    } else {
+      status = 'NOT_CONFIGURED'; // real runtime path (OCR.space) is missing
+    }
+
+    const note = !groqConfigured
+      ? 'GROQ_API_KEY not set — AI receipt parsing and support assistant are disabled'
+      : ocrConfigured
+        ? 'GROQ_API_KEY and OCRSPACE_API_KEY are set'
+        : visionEnabled
+          ? 'GROQ_API_KEY set and Groq vision enabled, but OCRSPACE_API_KEY is missing — no fallback if vision fails'
+          : 'GROQ_API_KEY set, but OCRSPACE_API_KEY is missing — receipt screenshot autofill will fail on every upload';
+
     return {
       name: 'AI / OCR (Groq + OCR.space)',
-      status: groqConfigured ? 'CONFIGURED' : 'NOT_CONFIGURED',
-      note: groqConfigured
-        ? `GROQ_API_KEY set; OCR.space ${ocrConfigured ? 'also configured' : 'not configured (not required)'}`
-        : 'GROQ_API_KEY not set — AI receipt parsing and support assistant are disabled',
+      status,
+      note,
+      ocrAlsoConfigured: !isStubActive(),
       latencyMs: null,
     };
   } catch (err) {

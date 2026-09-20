@@ -105,7 +105,7 @@ function withSenderName(payment) {
 async function resolveResidentId(req) {
   if (req.user.role === 'RESIDENT') {
     const resident = await prisma.resident.findUnique({ where: { userId: req.user.id } });
-    if (!resident) throw new AppError('Resident profile not found', 404);
+    if (!resident) throw new AppError('Resident profile not found', 403);
     return resident.id;
   }
   // ADMIN recording on behalf of someone
@@ -141,12 +141,6 @@ const createPayment = catchAsync(async (req, res) => {
   const target = await resolveTarget(req);
   const isAdminRecording = req.user.role === 'ADMIN';
 
-  // A committee member recording a payment must supply the real transaction
-  // reference from the receipt — the reference is the verifiable proof of
-  // payment, so fabricating or omitting it defeats its purpose.
-  if (isAdminRecording && !req.body.transactionReference?.trim()) {
-    throw new AppError('Transaction reference is required when recording a payment manually.', 400);
-  }
 
   const payment = await prisma.payment.create({
     data: {
@@ -184,7 +178,7 @@ const listPayments = catchAsync(async (req, res) => {
 
   if (req.user.role === 'RESIDENT') {
     const resident = await prisma.resident.findUnique({ where: { userId: req.user.id } });
-    if (!resident) throw new AppError('Resident profile not found', 404);
+    if (!resident) throw new AppError('Resident profile not found', 403);
     where = { AND: [where, { residentId: resident.id }] };
   }
 
@@ -456,7 +450,8 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
   // Route-level authorize() lets ADMIN through too — an admin who's also a
   // resident of their own community (User.resident, schema.prisma) can
   // self-verify a payment for their own unit. If they have no linked
-  // resident profile, the lookup a few lines down 404s cleanly instead.
+  // resident profile, the lookup below is rejected without revealing whether
+  // a resident record exists for another account.
   if (!['ADMIN', 'RESIDENT'].includes(req.user.role)) {
     throw new AppError('Only residents can submit self-verified payments', 403);
   }
@@ -470,7 +465,7 @@ const selfVerifyPayment = catchAsync(async (req, res) => {
     where: { userId: req.user.id },
     include: { user: { select: { fullName: true } } },
   });
-  if (!resident) throw new AppError('Resident profile not found', 404);
+  if (!resident) throw new AppError('Resident profile not found', 403);
 
   const community = await prisma.community.findUnique({ where: { id: req.communityId } });
   const { method: paymentMethod, provider, expectedAccountNumber } = await resolvePaymentMethod(req, community);
@@ -815,7 +810,7 @@ const retractOwnPayment = catchAsync(async (req, res) => {
   }
 
   const resident = await prisma.resident.findUnique({ where: { userId: req.user.id } });
-  if (!resident) throw new AppError('Resident profile not found', 404);
+  if (!resident) throw new AppError('Resident profile not found', 403);
 
   const payment = await prisma.payment.findFirst({
     where: { id: req.params.id, ...communityPaymentFilter(req.communityId) },

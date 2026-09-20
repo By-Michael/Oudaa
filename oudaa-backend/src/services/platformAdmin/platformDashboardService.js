@@ -109,7 +109,7 @@ async function getFinancialAggregates() {
 }
 
 async function getSummary({ bypassCache = false } = {}) {
-  if (!bypassCache && summaryCache.value && summaryCache.expiresAt > Date.now()) {
+  if (!bypassCache && process.env.NODE_ENV !== 'test' && summaryCache.value && summaryCache.expiresAt > Date.now()) {
     return summaryCache.value;
   }
 

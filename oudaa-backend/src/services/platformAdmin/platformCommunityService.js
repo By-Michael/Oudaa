@@ -355,8 +355,8 @@ async function getCommunityUsers(communityId, opts = {}) {
         },
         refreshTokens: {
           where: { revoked: false, expiresAt: { gt: new Date() } },
-          select: { lastUsedAt: true },
-          orderBy: { lastUsedAt: 'desc' },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'desc' },
           take: 1,
         },
       },
@@ -371,7 +371,7 @@ async function getCommunityUsers(communityId, opts = {}) {
     createdAt: u.createdAt,
     residentStatus: u.resident?.status ?? null,
     unitNumber: u.resident?.unitNumber ?? null,
-    lastActivity: u.refreshTokens[0]?.lastUsedAt ?? null,
+    lastActivity: u.refreshTokens[0]?.createdAt ?? null,
   }));
 
   return {
@@ -419,7 +419,7 @@ async function revokeCommunityAdminSessions(communityId) {
   if (!admins.length) return { affectedUsers: 0, revokedSessions: 0 };
   const result = await prisma.refreshToken.updateMany({
     where: { userId: { in: admins.map((a) => a.id) }, revoked: false },
-    data: { revoked: true, revokedAt: new Date() },
+    data: { revoked: true },
   });
   return { affectedUsers: admins.length, revokedSessions: result.count };
 }

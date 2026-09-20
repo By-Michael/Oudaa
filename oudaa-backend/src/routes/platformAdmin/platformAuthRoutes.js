@@ -21,11 +21,10 @@ const router = express.Router();
 // surface guards operator access to every tenant on the platform, so
 // brute-force/credential-stuffing tolerance should be lower, not equal.
 //
-// `max`/`windowMs` are functions (supported by express-rate-limit v8) that
-// read the Security Settings row on each request via the sync cache (see
-// platformSecuritySettingsService) rather than a value frozen at process
-// boot — so changing "login rate limiting" in the Security Center takes
-// effect within the cache's ~5s TTL, no restart required. In non-production
+// The rate-limit window is fixed at 15 minutes because express-rate-limit's
+// MemoryStore requires a numeric windowMs. The configurable ceiling is still
+// read from the Security Settings sync cache on each request, so changing
+// "login rate limiting" takes effect within the cache's ~5s TTL. In non-production
 // we still fall back to a very high ceiling so the existing test suite
 // (which fires many login attempts deliberately) isn't affected unless a
 // test explicitly writes tighter settings.
@@ -35,10 +34,10 @@ async function warmSecuritySettingsCache() {
 warmSecuritySettingsCache();
 
 const platformAuthLimiter = rateLimit({
-  windowMs: () => {
-    if (process.env.NODE_ENV !== 'production') return 15 * 60 * 1000;
-    return getCachedSecuritySettingsSync().loginRateLimitWindowMinutes * 60 * 1000;
-  },
+  // express-rate-limit's MemoryStore requires a numeric windowMs. Keep the
+  // operator-configurable ceiling in `max`, while using the standard 15-minute
+  // window for both test/dev and production.
+  windowMs: 15 * 60 * 1000,
   max: () => {
     if (process.env.NODE_ENV !== 'production') return 5000;
     return getCachedSecuritySettingsSync().loginRateLimitMax;

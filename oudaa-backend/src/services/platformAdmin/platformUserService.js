@@ -34,8 +34,8 @@ const SAFE_USER_SELECT = {
   // Most recent active session for "last login"
   refreshTokens: {
     where: { revoked: false, expiresAt: { gt: new Date() } },
-    select: { lastUsedAt: true, createdAt: true },
-    orderBy: { lastUsedAt: 'desc' },
+    select: { createdAt: true },
+    orderBy: { createdAt: 'desc' },
     take: 1,
   },
 };
@@ -129,13 +129,11 @@ async function getUserDetail(userId) {
       refreshTokens: {
         select: {
           id: true,
-          lastUsedAt: true,
           createdAt: true,
           expiresAt: true,
           revoked: true,
-          ipAddress: false, // not stored on community RefreshToken
         },
-        orderBy: { lastUsedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         take: 20,
       },
     },
@@ -169,7 +167,7 @@ async function getUserDetail(userId) {
       total: user.refreshTokens.length,
       list: user.refreshTokens.map((t) => ({
         id: t.id,
-        lastUsedAt: t.lastUsedAt,
+        lastUsedAt: null,
         createdAt: t.createdAt,
         expiresAt: t.expiresAt,
         revoked: t.revoked,
@@ -188,7 +186,7 @@ async function getUserDetail(userId) {
 async function revokeUserSessions(userId) {
   await prisma.refreshToken.updateMany({
     where: { userId, revoked: false },
-    data: { revoked: true, revokedAt: new Date() },
+    data: { revoked: true },
   });
 }
 
@@ -216,7 +214,7 @@ function formatUser(u) {
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
     avatarUrl: u.avatarUrl ?? null,
-    lastActivity: u.refreshTokens?.[0]?.lastUsedAt ?? null,
+    lastActivity: u.refreshTokens?.[0]?.createdAt ?? null,
     // Explicitly never included: passwordHash, mfaSecretEnc, refreshToken hashes
   };
 }

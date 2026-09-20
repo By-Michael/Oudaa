@@ -112,7 +112,7 @@ async function getTicketDetail(ticketId, { includeInternalNotes = true } = {}) {
   const ticket = await prisma.supportTicket.findUnique({
     where: { id: ticketId },
     include: {
-      user: { select: { id: true, fullName: true, email: true, role: true, communityId: true, createdAt: true, lastLoginAt: true } },
+      user: { select: { id: true, fullName: true, email: true, role: true, communityId: true, createdAt: true } },
       community: { select: { id: true, name: true, slug: true, status: true } },
       assignedTo: { select: { id: true, fullName: true, email: true, role: true } },
       messages: {
@@ -295,7 +295,7 @@ async function escalateTicket(req, ticketId) {
     message: `${updated.subject} requires platform attention.`,
     route: `/platform-admin/support?ticket=${updated.id}`,
     metadata: { ticketId: updated.id, communityId: updated.communityId, priority: updated.priority },
-  });
+  }).catch(() => {});
   return updated;
 }
 

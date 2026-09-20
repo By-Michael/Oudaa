@@ -20,7 +20,7 @@ async function searchCommunities(q) {
     take: PER_CATEGORY_LIMIT,
     select: { id: true, name: true, slug: true, status: true },
   });
-  return rows.map((c) => ({
+  return (rows || []).map((c) => ({
     type: 'community',
     id: c.id,
     title: c.name,
@@ -35,7 +35,7 @@ async function searchUsers(q) {
     take: PER_CATEGORY_LIMIT,
     select: { id: true, fullName: true, email: true, role: true, communityId: true },
   });
-  return rows.map((u) => ({
+  return (rows || []).map((u) => ({
     type: u.role === 'ADMIN' ? 'community_admin' : 'user',
     id: u.id,
     title: u.fullName,
@@ -56,7 +56,7 @@ async function searchResidents(q) {
     take: PER_CATEGORY_LIMIT,
     select: { id: true, unitNumber: true, status: true, user: { select: { fullName: true } } },
   });
-  return rows.map((r) => ({
+  return (rows || []).map((r) => ({
     type: 'resident',
     id: r.id,
     title: r.user?.fullName || 'Unknown resident',
@@ -71,7 +71,7 @@ async function searchSupport(q) {
     take: PER_CATEGORY_LIMIT,
     select: { id: true, title: true, createdAt: true },
   });
-  return rows.map((s) => ({
+  return (rows || []).map((s) => ({
     type: 'support',
     id: s.id,
     title: s.title,
@@ -85,16 +85,16 @@ async function searchPlatformAdmins(q) {
     where: {
       OR: [
         { email: { contains: q, mode: 'insensitive' } },
-        { name: { contains: q, mode: 'insensitive' } },
+        { fullName: { contains: q, mode: 'insensitive' } },
       ],
     },
     take: PER_CATEGORY_LIMIT,
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, fullName: true, role: true },
   });
-  return rows.map((a) => ({
+  return (rows || []).map((a) => ({
     type: 'platform_admin',
     id: a.id,
-    title: a.name || a.email,
+    title: a.fullName || a.email,
     subtitle: `${a.email} · ${a.role}`,
     link: `/platform-admin/admins/${a.id}`,
   }));
@@ -112,7 +112,7 @@ async function searchSupportTickets(q) {
     orderBy: { createdAt: 'desc' },
     select: { id: true, subject: true, status: true, createdAt: true },
   });
-  return rows.map((t) => ({
+  return (rows || []).map((t) => ({
     type: 'support_ticket',
     id: t.id,
     title: t.subject,
@@ -128,7 +128,7 @@ async function searchAudit(q) {
     take: PER_CATEGORY_LIMIT,
     select: { id: true, action: true, description: true, createdAt: true },
   });
-  return rows.map((a) => ({
+  return (rows || []).map((a) => ({
     type: 'audit',
     id: a.id,
     title: a.description,
@@ -146,10 +146,10 @@ async function searchPayments(q) {
       ],
     },
     take: PER_CATEGORY_LIMIT,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { paidAt: 'desc' },
     select: { id: true, amount: true, status: true, payerName: true, transactionReference: true, communityId: true },
   });
-  return rows.map((p) => ({
+  return (rows || []).map((p) => ({
     type: 'payment',
     id: p.id,
     title: p.transactionReference || `Payment from ${p.payerName || 'unknown'}`,
@@ -165,7 +165,7 @@ async function searchProjects(q) {
     orderBy: { createdAt: 'desc' },
     select: { id: true, name: true, status: true, communityId: true },
   });
-  return rows.map((p) => ({
+  return (rows || []).map((p) => ({
     type: 'project',
     id: p.id,
     title: p.name,
@@ -180,7 +180,7 @@ const CATEGORY_MAP = [
   [PLATFORM_PERMISSIONS.USERS_VIEW, 'users', searchUsers],
   [PLATFORM_PERMISSIONS.ADMINS_VIEW, 'admins', searchPlatformAdmins],
   [PLATFORM_PERMISSIONS.USERS_VIEW, 'residents', searchResidents],
-  [PLATFORM_PERMISSIONS.SUPPORT_VIEW, 'support_tickets', searchSupportTickets],
+  [PLATFORM_PERMISSIONS.SUPPORT_VIEW, 'support_tickets', searchSupportTickets, 'supportTicket'],
   [PLATFORM_PERMISSIONS.AUDIT_VIEW, 'audit', searchAudit],
   [PLATFORM_PERMISSIONS.COMMUNITIES_VIEW, 'payments', searchPayments],
   [PLATFORM_PERMISSIONS.COMMUNITIES_VIEW, 'projects', searchProjects],
@@ -192,7 +192,10 @@ async function globalSearch(role, query) {
     return { query: q, groups: [], tooShort: true, minLength: MIN_QUERY_LENGTH };
   }
 
-  const permitted = CATEGORY_MAP.filter(([permission]) => roleHasPermission(role, permission));
+  const permitted = CATEGORY_MAP.filter(([permission, , , model]) => {
+    if (!roleHasPermission(role, permission)) return false;
+    return !model || typeof prisma[model]?.findMany === 'function';
+  });
   const results = await Promise.all(permitted.map(([, , fn]) => fn(q)));
 
   const groups = permitted

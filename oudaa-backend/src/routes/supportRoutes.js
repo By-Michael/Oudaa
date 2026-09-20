@@ -8,6 +8,13 @@ const { chatMessageSchema, saveSessionSchema } = require('../validators/supportV
 
 const router = express.Router();
 
+// Support tickets are platform-admin only. Return a structural 404 from the
+// community API surface instead of leaking an authentication challenge for a
+// route that does not exist here.
+router.use('/tickets', (_req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
 router.use(authenticate, tenantScope);
 
 router.get('/faqs', ctrl.listFaqs);

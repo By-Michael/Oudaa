@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const request = require('supertest');
 const app = require('../../src/app');
 const { prisma, resetDb, disconnectDb } = require('../testDb');
+const { currentTotp } = require('../../src/utils/platformMfa');
 
 const BASE = '/api/platform/v1';
 
@@ -28,6 +29,21 @@ async function loginPlatformAdmin(email = 'ops@hivee.local', password = 'Passwor
     .post(`${BASE}/auth/login`)
     .send({ email, password });
   return res.body.data?.accessToken;
+}
+
+
+async function loginPlatformAdminWithMfa(email = 'super@hivee.local') {
+  const token = await loginPlatformAdmin(email);
+  const start = await request(app)
+    .post(`${BASE}/auth/mfa/enroll/start`)
+    .set('Authorization', `Bearer ${token}`);
+  expect(start.status).toBe(200);
+  const verify = await request(app)
+    .post(`${BASE}/auth/mfa/enroll/verify`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ token: currentTotp(start.body.data.secret) });
+  expect(verify.status).toBe(200);
+  return token;
 }
 
 async function createCommunity(name, status = 'ACTIVE') {
@@ -100,7 +116,7 @@ describe('GET /communities — platform admin access', () => {
 
   it('returns paginated community list for SUPER_ADMIN', async () => {
     await createPlatformAdmin('SUPER_ADMIN', 'super@hivee.local');
-    const token = await loginPlatformAdmin('super@hivee.local');
+    const token = await loginPlatformAdminWithMfa('super@hivee.local');
     await createCommunity('Gamma Community');
 
     const res = await request(app)

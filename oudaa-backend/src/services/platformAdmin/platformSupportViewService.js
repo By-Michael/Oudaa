@@ -165,8 +165,8 @@ async function getSupportViewSnapshot(targetUserId) {
       // Active sessions (count only — no hashes)
       refreshTokens: {
         where: { revoked: false, expiresAt: { gt: new Date() } },
-        select: { lastUsedAt: true },
-        orderBy: { lastUsedAt: 'desc' },
+        select: { createdAt: true },
+        orderBy: { createdAt: 'desc' },
         take: 1,
       },
     },
@@ -197,7 +197,7 @@ async function getSupportViewSnapshot(targetUserId) {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     avatarUrl: user.avatarUrl ?? null,
-    lastActivity: user.refreshTokens[0]?.lastUsedAt ?? null,
+    lastActivity: user.refreshTokens[0]?.createdAt ?? null,
     recentActivity,
     // Secrets: intentionally absent
   };

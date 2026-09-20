@@ -12,7 +12,8 @@ const { PLATFORM_PERMISSIONS } = require('../../config/platformPermissions');
 const {
   createPlatformAdminSchema,
   changeRoleSchema,
-  setActiveStatusSchema,
+  enableActiveStatusSchema,
+  disableActiveStatusSchema,
   requirePasswordResetSchema,
   requireMfaReenrollmentSchema,
   revokeAdminSessionsSchema,
@@ -58,7 +59,7 @@ router.post(
   ...authChain,
   requireRecentReauthentication(REAUTH_MINUTES),
   requirePlatformPermission(PLATFORM_PERMISSIONS.ADMINS_MANAGE),
-  validate(setActiveStatusSchema),
+  validate(enableActiveStatusSchema),
   controller.enable
 );
 
@@ -67,7 +68,7 @@ router.post(
   ...authChain,
   requireRecentReauthentication(REAUTH_MINUTES),
   requirePlatformPermission(PLATFORM_PERMISSIONS.ADMINS_MANAGE),
-  validate(setActiveStatusSchema),
+  validate(disableActiveStatusSchema),
   controller.disable
 );
 

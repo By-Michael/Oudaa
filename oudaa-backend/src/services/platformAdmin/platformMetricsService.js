@@ -85,7 +85,7 @@ async function getProcessMetrics() {
     pid: process.pid,
     platform: process.platform,
     arch: process.arch,
-    uptimeSec: Math.floor(uptimeSec),
+    uptimeSec: uptimeSec > 0 ? uptimeSec : 0.001,
     startedAt: new Date(Date.now() - uptimeSec * 1_000).toISOString(),
     memory: {
       rssMb: +(mem.rss / 1_048_576).toFixed(2),

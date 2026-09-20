@@ -59,16 +59,20 @@ const setStatus = catchAsync(async (req, res) => {
   if (!allowed.includes(status)) {
     throw new AppError(`status must be one of: ${allowed.join(', ')}`, 400);
   }
-  if (!reason || !String(reason).trim()) {
-    throw new AppError('A reason is required for community status changes', 400);
-  }
 
-  // Verify the community exists first
+  // Verify the community exists first so a missing ID is reported accurately.
   const existing = await communityService.getCommunityDetail(req.params.id);
   if (!existing) throw new AppError('Community not found', 404);
 
   if (existing.status === status) {
     throw new AppError(`Community is already ${status}`, 409);
+  }
+
+  // Suspension is a consequential destructive-state transition and must be
+  // accompanied by an operator-provided reason. Reactivation clears the old
+  // suspension reason and does not need a new reason.
+  if (status === 'SUSPENDED' && (!reason || !String(reason).trim())) {
+    throw new AppError('A reason is required when suspending a community', 400);
   }
 
   const updated = await communityService.setCommunityStatus(req.params.id, status, reason);

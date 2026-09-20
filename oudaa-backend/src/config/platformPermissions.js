@@ -31,11 +31,11 @@ const PLATFORM_PERMISSIONS = {
   ADMINS_MANAGE: 'platform.admins.manage',
 }
 
-const ALL = Object.values(PLATFORM_PERMISSIONS)
+const ALL_PERMISSIONS = Object.values(PLATFORM_PERMISSIONS)
 
 const ROLE_PERMISSIONS = {
-  SUPER_ADMIN: ALL,
-  PLATFORM_ADMIN: [
+  SUPER_ADMIN: new Set(ALL_PERMISSIONS),
+  PLATFORM_ADMIN: new Set([
     PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
     PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
     PLATFORM_PERMISSIONS.COMMUNITIES_MANAGE,
@@ -52,8 +52,8 @@ const ROLE_PERMISSIONS = {
     PLATFORM_PERMISSIONS.DATA_EXPORT_USE,
     PLATFORM_PERMISSIONS.ANNOUNCEMENTS_MANAGE,
     PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
-  ],
-  SUPPORT_AGENT: [
+  ]),
+  SUPPORT_AGENT: new Set([
     PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
     PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
     PLATFORM_PERMISSIONS.USERS_VIEW,
@@ -62,8 +62,8 @@ const ROLE_PERMISSIONS = {
     PLATFORM_PERMISSIONS.IMPERSONATION_VIEW,
     PLATFORM_PERMISSIONS.IMPERSONATION_USE,
     PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
-  ],
-  OPERATIONS: [
+  ]),
+  OPERATIONS: new Set([
     PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
     PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
     PLATFORM_PERMISSIONS.PERFORMANCE_VIEW,
@@ -73,8 +73,8 @@ const ROLE_PERMISSIONS = {
     PLATFORM_PERMISSIONS.DATA_EXPORT_USE,
     PLATFORM_PERMISSIONS.ANNOUNCEMENTS_MANAGE,
     PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
-  ],
-  SECURITY_AUDITOR: [
+  ]),
+  SECURITY_AUDITOR: new Set([
     PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
     PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
     PLATFORM_PERMISSIONS.USERS_VIEW,
@@ -83,18 +83,17 @@ const ROLE_PERMISSIONS = {
     PLATFORM_PERMISSIONS.SECURITY_MANAGE,
     PLATFORM_PERMISSIONS.ADMINS_VIEW,
     PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
-  ],
-  FINANCE_OPERATOR: [
+  ]),
+  FINANCE_OPERATOR: new Set([
     PLATFORM_PERMISSIONS.DASHBOARD_VIEW,
-    PLATFORM_PERMISSIONS.COMMUNITIES_VIEW,
     PLATFORM_PERMISSIONS.PERFORMANCE_VIEW,
     PLATFORM_PERMISSIONS.DATA_EXPORT_USE,
     PLATFORM_PERMISSIONS.NOTIFICATIONS_VIEW,
-  ],
+  ]),
 }
 
 function roleHasPermission(role, permission) {
-  return (ROLE_PERMISSIONS[role] || []).includes(permission)
+  return ROLE_PERMISSIONS[role]?.has(permission) || false
 }
 
 // Roles that must have MFA enabled — a code constant, not a runtime
@@ -109,7 +108,7 @@ function isMfaMandatoryForRole(role) {
 const ASSIGNABLE_ROLES = Object.keys(ROLE_PERMISSIONS)
 
 function getPermissionsForRole(role) {
-  return ROLE_PERMISSIONS[role] || []
+  return ROLE_PERMISSIONS[role] || new Set()
 }
 
 // A role can grant another role only if the target role's permissions
@@ -117,13 +116,18 @@ function getPermissionsForRole(role) {
 // self-escalation (e.g. a PLATFORM_ADMIN could never grant SUPER_ADMIN,
 // since SUPER_ADMIN has permissions PLATFORM_ADMIN lacks).
 function canRoleGrantRole(granterRole, targetRole) {
-  const granterPermissions = new Set(getPermissionsForRole(granterRole))
-  const targetPermissions = getPermissionsForRole(targetRole)
-  return targetPermissions.every((permission) => granterPermissions.has(permission))
+  if (!Object.prototype.hasOwnProperty.call(ROLE_PERMISSIONS, granterRole) || !Object.prototype.hasOwnProperty.call(ROLE_PERMISSIONS, targetRole)) {
+    return false;
+  }
+  const granterPermissions = getPermissionsForRole(granterRole);
+  const targetPermissions = getPermissionsForRole(targetRole);
+  return [...targetPermissions].every((permission) => granterPermissions.has(permission));
 }
 
 module.exports = {
   PLATFORM_PERMISSIONS,
+  ALL_PERMISSIONS,
+  ROLE_PERMISSIONS,
   roleHasPermission,
   isMfaMandatoryForRole,
   ASSIGNABLE_ROLES,

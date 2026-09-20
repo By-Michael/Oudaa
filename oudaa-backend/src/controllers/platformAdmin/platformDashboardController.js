@@ -20,7 +20,7 @@ const summary = catchAsync(async (req, res) => {
 
   res.json({
     success: true,
-    data: { metrics, financial, systemStatus, generatedAt },
+    data: { metrics, financial, systemStatus, generatedAt, communityCount: metrics.communities.total },
   });
 });
 

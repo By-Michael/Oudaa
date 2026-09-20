@@ -33,14 +33,14 @@ describe('platformSearchService.globalSearch — permission filtering', () => {
     expect(prisma.supportChatSession.findMany).toHaveBeenCalled();
     expect(prisma.platformAuditLog.findMany).toHaveBeenCalled();
     expect(prisma.payment.findMany).toHaveBeenCalled();
-    expect(prisma.project.findMany).toHaveBeenCalled();
+    expect(prisma.project.findMany).not.toHaveBeenCalled();
   });
 
-  it('FINANCE_OPERATOR (no support/audit/users view) never queries support, audit, users, or residents', async () => {
+  it('FINANCE_OPERATOR (no community/support/audit/users view) never queries those search categories', async () => {
     await globalSearch('FINANCE_OPERATOR', 'greenwood');
-    expect(prisma.community.findMany).toHaveBeenCalled(); // COMMUNITIES_VIEW
-    expect(prisma.payment.findMany).toHaveBeenCalled(); // reuses COMMUNITIES_VIEW
-    expect(prisma.project.findMany).toHaveBeenCalled();
+    expect(prisma.community.findMany).not.toHaveBeenCalled();
+    expect(prisma.payment.findMany).not.toHaveBeenCalled();
+    expect(prisma.project.findMany).not.toHaveBeenCalled();
     expect(prisma.user.findMany).not.toHaveBeenCalled();
     expect(prisma.resident.findMany).not.toHaveBeenCalled();
     expect(prisma.supportChatSession.findMany).not.toHaveBeenCalled();

@@ -28,7 +28,13 @@ const changeRoleSchema = z.object({
   }),
 });
 
-const setActiveStatusSchema = z.object({
+const enableActiveStatusSchema = z.object({
+  body: z.object({
+    confirm: confirmField,
+  }),
+});
+
+const disableActiveStatusSchema = z.object({
   body: z.object({
     reason: reasonField,
     confirm: confirmField,
@@ -59,7 +65,8 @@ const revokeAdminSessionsSchema = z.object({
 module.exports = {
   createPlatformAdminSchema,
   changeRoleSchema,
-  setActiveStatusSchema,
+  enableActiveStatusSchema,
+  disableActiveStatusSchema,
   requirePasswordResetSchema,
   requireMfaReenrollmentSchema,
   revokeAdminSessionsSchema,

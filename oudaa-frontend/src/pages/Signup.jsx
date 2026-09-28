@@ -752,12 +752,12 @@ export default function Signup() {
   }, [data.committeeMembers])
 
   const errors = useMemo(() => validateStep(step, data), [step, data])
-  const canAdvance = Object.keys(errors).length === 0 && Object.keys(takenErrors).length === 0
 
   // Only expose errors to step components after the user has clicked Continue.
   const displayErrors = attempted ? { ...errors, ...takenErrors } : {}
 
   async function goNext() {
+    if (submitting || isEmailChecking) return // guard against double-clicks
     setAttempted(true)
 
     // 1. Sync validation — show errors immediately if anything is missing/invalid.
@@ -770,25 +770,27 @@ export default function Signup() {
       setIsEmailChecking(true)
       const taken = {}
 
-      if (step === 1) {
-        const email = data.email.trim().toLowerCase()
-        if (EMAIL_RE.test(email)) {
-          const available = await checkEmailAvailable(email)
-          if (available === false) taken.email = 'This email is already registered to another account.'
-        }
-      }
-
-      if (step === 4) {
-        for (let i = 0; i < data.committeeMembers.length; i++) {
-          const email = data.committeeMembers[i].email.trim().toLowerCase()
+      try {
+        if (step === 1) {
+          const email = data.email.trim().toLowerCase()
           if (EMAIL_RE.test(email)) {
             const available = await checkEmailAvailable(email)
-            if (available === false) taken[`member_${i}_email`] = 'This email is already registered to another account.'
+            if (available === false) taken.email = 'This email is already registered to another account.'
           }
         }
-      }
 
-      setIsEmailChecking(false)
+        if (step === 4) {
+          for (let i = 0; i < data.committeeMembers.length; i++) {
+            const email = data.committeeMembers[i].email.trim().toLowerCase()
+            if (EMAIL_RE.test(email)) {
+              const available = await checkEmailAvailable(email)
+              if (available === false) taken[`member_${i}_email`] = 'This email is already registered to another account.'
+            }
+          }
+        }
+      } finally {
+        setIsEmailChecking(false)
+      }
 
       if (Object.keys(taken).length > 0) {
         setTakenErrors(taken)
@@ -927,7 +929,7 @@ export default function Signup() {
                 >
                   <ArrowLeft size={15} /> Back
                 </button>
-                <button type="button" onClick={goNext} disabled={submitting || isEmailChecking || (attempted && !canAdvance)} className="btn-primary gap-1.5 px-6">
+                <button type="button" onClick={goNext} disabled={submitting || isEmailChecking} className="btn-primary gap-1.5 px-6">
                   {isEmailChecking ? (
                     <><Loader2 size={15} className="animate-spin" /> Checking…</>
                   ) : step === 5 ? (
